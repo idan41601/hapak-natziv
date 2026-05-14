@@ -34,7 +34,7 @@ export default function DriversPage({ activeTrip, vehicleKm, onTripStart, onTrip
       .then(({ data }) => data && setSafetyItems(data))
   }, [])
 
-  const categories = [...new Set(safetyItems.map(i => i.category))]
+  const categories = Array.from(new Set(safetyItems.map(i => i.category)))
   const total = safetyItems.length
   const checkedCount = checked.size
   const pct = total > 0 ? Math.round(checkedCount / total * 100) : 0
