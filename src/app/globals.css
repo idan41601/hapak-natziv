@@ -1,0 +1,58 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --red: #C0392B;
+  --red-dark: #A93226;
+  --red-bg: #fdf0f0;
+  --red-border: #f5c6c6;
+  --green: #1E8449;
+  --green-bg: #eaf5ee;
+  --green-border: #a9dfbf;
+  --amber: #B7770D;
+  --amber-bg: #fef9ec;
+  --amber-border: #f9e4a0;
+  --bg: #ffffff;
+  --bg2: #f5f4f1;
+  --bg3: #eeede9;
+  --bg4: #e4e3de;
+  --border: #dddbd5;
+  --border2: #c9c7c0;
+  --text: #1a1a18;
+  --muted: #6b6a65;
+  --dim: #aaa9a3;
+  --wood: #8B6340;
+  --wood-light: #f0e8dd;
+}
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  direction: rtl;
+  background: #e0dedd;
+  min-height: 100vh;
+}
+
+input, textarea, select, button {
+  font-family: inherit;
+}
+
+.phone {
+  background: var(--bg2);
+  width: 100%;
+  max-width: 390px;
+  min-height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+@media (min-width: 500px) {
+  .phone {
+    min-height: 100vh;
+    box-shadow: 0 4px 28px rgba(0,0,0,.14);
+  }
+}
