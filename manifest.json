@@ -1,0 +1,22 @@
+{
+  "name": "חפ\"ק נציב כבאות והצלה",
+  "short_name": "חפ\"ק נציב",
+  "description": "מערכת ניהול רכב מבצעי",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#C0392B",
+  "theme_color": "#C0392B",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/chapak-hero.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/chapak-hero.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
