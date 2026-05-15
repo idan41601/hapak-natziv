@@ -32,7 +32,7 @@ export default function Home() {
           </div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>חפ&quot;ק נציב כבאות</div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', marginTop: 1 }}>DAF XB 260 · רישוי 259-43-801</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', marginTop: 1 }}>לפיד 10 · רישוי 259-43-801</div>
           </div>
         </div>
         <div style={{
