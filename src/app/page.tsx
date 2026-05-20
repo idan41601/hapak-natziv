@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import TripTab from '@/components/TripTab'
 import OperatorTab from '@/components/OperatorTab'
 import AdminTab from '@/components/AdminTab'
@@ -10,6 +11,22 @@ type Tab = 'trip' | 'operator' | 'admin'
 export default function Home() {
   const [tab, setTab] = useState<Tab>('trip')
   const [activeTrip, setActiveTrip] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // בטעינת האפליקציה — בדוק אם יש נסיעה פעילה ב-Supabase
+    supabase.from('trips').select('*').eq('status', 'active').single()
+      .then(({ data }) => {
+        if (data) setActiveTrip(data)
+        setLoading(false)
+      })
+  }, [])
+
+  if (loading) return (
+    <div className="phone" style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: 'var(--muted)', fontSize: 14 }}>טוען...</div>
+    </div>
+  )
 
   return (
     <div className="phone">
@@ -32,7 +49,7 @@ export default function Home() {
           </div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>חפ&quot;ק נציב כבאות</div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', marginTop: 1 }}>לפיד 10 · רישוי 259-43-801</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', marginTop: 1 }}>לפיד 10</div>
           </div>
         </div>
         <div style={{
@@ -62,12 +79,12 @@ export default function Home() {
         {tab === 'admin' && <AdminTab />}
       </div>
 
-      {/* BOTTOM NAV - 3 tabs */}
+      {/* BOTTOM NAV */}
       <nav style={{
         background: 'var(--bg)',
         borderTop: '1px solid var(--border)',
         display: 'flex',
-        padding: '4px 0 10px',
+        padding: '4px 0 6px',
         flexShrink: 0,
       }}>
         {[
@@ -91,6 +108,19 @@ export default function Home() {
           </button>
         ))}
       </nav>
+
+      {/* COPYRIGHT */}
+      <div style={{
+        background: 'var(--bg)',
+        borderTop: '1px solid var(--border)',
+        padding: '6px 0',
+        textAlign: 'center',
+        fontSize: 10,
+        color: 'var(--dim)',
+        flexShrink: 0,
+      }}>
+        נוצר ופותח ע&quot;י עידן פינצבסקי · כל הזכויות שמורות
+      </div>
     </div>
   )
 }
