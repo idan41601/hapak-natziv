@@ -7,7 +7,7 @@ const ADMIN_PASSWORD = 'chapak2026'
 
 interface Driver { id: string; name: string; rank: string; active: boolean; pin: string | null }
 interface SafetyItem { id: string; category: string; text: string; note: string; order_index: number; active: boolean }
-interface SopStep { id: string; sop_type: string; title: string; description: string; order_index: number }
+interface SopStep { id: string; sop_type: string; title: string; description: string; order_index: number; extra_alert: string | null }
 interface Trip { id: string; driver_name: string; start_km: number; end_km: number | null; start_time: string; end_time: string | null; notes: string | null; status: string }
 interface VehicleStat { current_km: number; next_service_km: number }
 interface Props { onTripClosed?: () => void }
@@ -33,7 +33,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
   const [showAddSop, setShowAddSop] = useState(false)
   const [newDriver, setNewDriver] = useState({ name: '', rank: '' })
   const [newSafety, setNewSafety] = useState({ category: 'כללי', text: '', note: '' })
-  const [newSop, setNewSop] = useState({ title: '', description: '' })
+  const [newSop, setNewSop] = useState({ title: '', description: '', extra_alert: '' })
   const [newKm, setNewKm] = useState('')
   const [closingTripId, setClosingTripId] = useState<string | null>(null)
   const [closingTripKm, setClosingTripKm] = useState('')
@@ -117,13 +117,13 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
   async function addSop() {
     if (!newSop.title) return
     const max = Math.max(...sopSteps.map(s => s.order_index), 0)
-    await supabase.from('sop_steps').insert({ ...newSop, sop_type: sopType, order_index: max + 1 })
-    setNewSop({ title: '', description: '' }); setShowAddSop(false); loadAll(); showToast('שלב נוסף ✓')
+    await supabase.from('sop_steps').insert({ ...newSop, extra_alert: newSop.extra_alert || null, sop_type: sopType, order_index: max + 1 })
+    setNewSop({ title: '', description: '', extra_alert: '' }); setShowAddSop(false); loadAll(); showToast('שלב נוסף ✓')
   }
 
   async function saveSop() {
     if (!editingSop) return
-    await supabase.from('sop_steps').update({ title: editingSop.title, description: editingSop.description }).eq('id', editingSop.id)
+    await supabase.from('sop_steps').update({ title: editingSop.title, description: editingSop.description, extra_alert: editingSop.extra_alert || null }).eq('id', editingSop.id)
     setEditingSop(null); loadAll(); showToast('שלב עודכן ✓')
   }
 
@@ -315,6 +315,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
               <div style={{ background: 'var(--bg2)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
                 <input value={newSop.title} onChange={e => setNewSop(p => ({ ...p, title: e.target.value }))} placeholder="כותרת השלב" style={{ ...inp(), marginBottom: 8 }} />
                 <textarea value={newSop.description} onChange={e => setNewSop(p => ({ ...p, description: e.target.value }))} placeholder="תיאור" rows={2} style={{ ...inp({ resize: 'none' }), marginBottom: 8 }} />
+                <input value={newSop.extra_alert} onChange={e => setNewSop(p => ({ ...p, extra_alert: e.target.value }))} placeholder="⚠️ התראה לפני שלב זה (אופציונלי)" style={{ ...inp(), marginBottom: 8 }} />
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={addSop} style={{ flex: 1, background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 0', fontSize: 12, cursor: 'pointer' }}>הוסף</button>
                   <button onClick={() => setShowAddSop(false)} style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 7, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>ביטול</button>
@@ -327,6 +328,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
                   <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
                     <input value={editingSop.title} onChange={e => setEditingSop(p => p ? { ...p, title: e.target.value } : p)} style={{ ...inp(), marginBottom: 8 }} />
                     <textarea value={editingSop.description} onChange={e => setEditingSop(p => p ? { ...p, description: e.target.value } : p)} rows={3} style={{ ...inp({ resize: 'none' }), marginBottom: 8 }} />
+                    <input value={editingSop.extra_alert || ''} onChange={e => setEditingSop(p => p ? { ...p, extra_alert: e.target.value } : p)} placeholder="⚠️ התראה לפני שלב זה (אופציונלי)" style={{ ...inp(), marginBottom: 8 }} />
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={saveSop} style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 0', fontSize: 12, cursor: 'pointer' }}>שמור</button>
                       <button onClick={() => setEditingSop(null)} style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 7, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>ביטול</button>
@@ -338,6 +340,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 500 }}>{step.title}</div>
                       {step.description && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{step.description}</div>}
+                      {step.extra_alert && <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 4, fontWeight: 500 }}>⚠️ {step.extra_alert}</div>}
                     </div>
                     <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
                       {i > 0 && <button onClick={() => moveSop(step, 'up')} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 5, padding: '3px 6px', fontSize: 11, cursor: 'pointer' }}>↑</button>}
