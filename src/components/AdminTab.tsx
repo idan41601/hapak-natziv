@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const ADMIN_PASSWORD = 'chapak2026'
@@ -12,7 +12,7 @@ interface Trip { id: string; driver_name: string; start_km: number; end_km: numb
 interface VehicleStat { current_km: number; next_service_km: number }
 interface Props { onTripClosed?: () => void }
 
-type AdminTab = 'drivers' | 'safety' | 'sop' | 'journal' | 'vehicle'
+type AdminTab = 'drivers' | 'safety' | 'sop' | 'journal' | 'vehicle' | 'stats'
 
 export default function AdminTab({ onTripClosed }: Props = {}) {
   const [authed, setAuthed] = useState(false)
@@ -24,6 +24,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
   const [sopSteps, setSopSteps] = useState<SopStep[]>([])
   const [sopType, setSopType] = useState<'exterior' | 'interior' | 'mast'>('exterior')
   const [trips, setTrips] = useState<Trip[]>([])
+  const [allTrips, setAllTrips] = useState<Trip[]>([])
   const [vehicleStat, setVehicleStat] = useState<VehicleStat | null>(null)
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null)
   const [editingSafety, setEditingSafety] = useState<SafetyItem | null>(null)
@@ -41,23 +42,31 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null)
   const [editTripFields, setEditTripFields] = useState({ start_km: '', end_km: '', notes: '', destination: '' })
   const [toast, setToast] = useState('')
+  // journal filters
+  const [journalSearch, setJournalSearch] = useState('')
+  const [journalDriver, setJournalDriver] = useState('all')
+  // driver history
+  const [historyDriver, setHistoryDriver] = useState<Driver | null>(null)
+  const [historyTrips, setHistoryTrips] = useState<Trip[]>([])
 
   useEffect(() => { if (authed) loadAll() }, [authed, tab, sopType])
 
-  async function loadAll() {
-    const [d, s, sop, t, v] = await Promise.all([
+  const loadAll = useCallback(async () => {
+    const [d, s, sop, t, v, all] = await Promise.all([
       supabase.from('drivers').select('*').order('name'),
       supabase.from('safety_items').select('*').order('order_index'),
       supabase.from('sop_steps').select('*').eq('sop_type', sopType).order('order_index'),
-      supabase.from('trips').select('*').order('start_time', { ascending: false }).limit(50),
+      supabase.from('trips').select('*').order('start_time', { ascending: false }).limit(100),
       supabase.from('vehicle_stats').select('*').single(),
+      supabase.from('trips').select('*').order('start_time', { ascending: false }),
     ])
     if (d.data) setDrivers(d.data)
     if (s.data) setSafetyItems(s.data)
     if (sop.data) setSopSteps(sop.data)
     if (t.data) setTrips(t.data)
     if (v.data) setVehicleStat(v.data)
-  }
+    if (all.data) setAllTrips(all.data)
+  }, [sopType])
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -151,6 +160,94 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
     setNewKm(''); loadAll(); showToast('ק"מ עודכן ✓')
   }
 
+  // ייצוא Excel
+  function exportExcel(tripsToExport: Trip[]) {
+    const rows = [
+      ['נהג', 'תאריך', 'שעת התחלה', 'שעת סיום', 'ק"מ פתיחה', 'ק"מ סיום', 'סה"כ ק"מ', 'מטרה', 'סטטוס'],
+      ...tripsToExport.map(t => [
+        t.driver_name,
+        new Date(t.start_time).toLocaleDateString('he-IL'),
+        new Date(t.start_time).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+        t.end_time ? new Date(t.end_time).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '',
+        t.start_km,
+        t.end_km ?? '',
+        t.end_km ? t.end_km - t.start_km : '',
+        t.notes ?? '',
+        t.status === 'active' ? 'פעיל' : 'הושלם',
+      ])
+    ]
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const bom = '\uFEFF'
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url
+    a.download = `יומן_נסיעות_${new Date().toLocaleDateString('he-IL').replace(/\//g, '-')}.csv`
+    a.click(); URL.revokeObjectURL(url)
+    showToast('Excel יוצא ✓')
+  }
+
+  // ייצוא PDF
+  function exportPDF(tripsToExport: Trip[]) {
+    const rows = tripsToExport.map(t => `
+      <tr>
+        <td>${t.driver_name}</td>
+        <td>${new Date(t.start_time).toLocaleDateString('he-IL')}</td>
+        <td>${new Date(t.start_time).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</td>
+        <td>${t.end_time ? new Date(t.end_time).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+        <td>${t.start_km.toLocaleString()}</td>
+        <td>${t.end_km?.toLocaleString() ?? '—'}</td>
+        <td>${t.end_km ? (t.end_km - t.start_km).toLocaleString() : '—'}</td>
+        <td>${t.notes ?? ''}</td>
+      </tr>`).join('')
+    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
+      <title>יומן נסיעות</title>
+      <style>
+        body { font-family: Arial, sans-serif; direction: rtl; padding: 20px; }
+        h1 { font-size: 18px; margin-bottom: 4px; }
+        p { color: #666; font-size: 12px; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #c0392b; color: white; padding: 8px 6px; text-align: right; }
+        td { padding: 7px 6px; border-bottom: 1px solid #eee; }
+        tr:nth-child(even) td { background: #fafafa; }
+      </style></head><body>
+      <h1>יומן נסיעות — חפ"ק נציב כבאות</h1>
+      <p>הופק בתאריך ${new Date().toLocaleDateString('he-IL')} | סה"כ ${tripsToExport.length} נסיעות</p>
+      <table><thead><tr>
+        <th>נהג</th><th>תאריך</th><th>התחלה</th><th>סיום</th>
+        <th>ק"מ פתיחה</th><th>ק"מ סיום</th><th>סה"כ ק"מ</th><th>מטרה</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+      </body></html>`
+    const w = window.open('', '_blank')!
+    w.document.write(html)
+    w.document.close()
+    w.focus()
+    setTimeout(() => { w.print() }, 400)
+    showToast('PDF נפתח להדפסה ✓')
+  }
+
+  // סטטיסטיקות
+  function calcStats(tripList: Trip[]) {
+    const done = tripList.filter(t => t.status === 'completed' && t.end_km)
+    const totalKm = done.reduce((s, t) => s + (t.end_km! - t.start_km), 0)
+    const byDriver: Record<string, { count: number; km: number }> = {}
+    done.forEach(t => {
+      if (!byDriver[t.driver_name]) byDriver[t.driver_name] = { count: 0, km: 0 }
+      byDriver[t.driver_name].count++
+      byDriver[t.driver_name].km += t.end_km! - t.start_km
+    })
+    const topDriver = Object.entries(byDriver).sort((a, b) => b[1].km - a[1].km)[0]
+    return { totalKm, totalTrips: tripList.length, doneTrips: done.length, topDriver, byDriver }
+  }
+
+  // פילטור יומן
+  const filteredTrips = trips.filter(t => {
+    const matchSearch = !journalSearch ||
+      t.driver_name.includes(journalSearch) ||
+      (t.notes ?? '').includes(journalSearch)
+    const matchDriver = journalDriver === 'all' || t.driver_name === journalDriver
+    return matchSearch && matchDriver
+  })
+
   const pad: React.CSSProperties = { padding: 14 }
   const card: React.CSSProperties = { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, marginBottom: 10 }
 
@@ -172,6 +269,51 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
     </div>
   )
 
+  // מסך היסטוריה לפי נהג
+  if (historyDriver) {
+    const driverTrips = allTrips.filter(t => t.driver_name === historyDriver.name && t.status === 'completed' && t.end_km)
+    const totalKm = driverTrips.reduce((s, t) => s + (t.end_km! - t.start_km), 0)
+    return (
+      <div style={pad}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <button onClick={() => setHistoryDriver(null)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>›</button>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>{historyDriver.name}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{historyDriver.rank}</div>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 12, textAlign: 'center' }}>
+            <div style={{ fontSize: 20, fontWeight: 600 }}>{driverTrips.length}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>נסיעות</div>
+          </div>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 12, textAlign: 'center' }}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--red)' }}>{totalKm.toLocaleString()}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>סה"כ ק"מ</div>
+          </div>
+        </div>
+        {driverTrips.length === 0 && <div style={{ ...card, textAlign: 'center', color: 'var(--muted)', fontSize: 13, padding: 30 }}>אין נסיעות עדיין</div>}
+        {driverTrips.map(trip => (
+          <div key={trip.id} style={card}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+              <span>📅 {new Date(trip.start_time).toLocaleDateString('he-IL')}</span>
+              <span>🕐 {new Date(trip.start_time).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <span>📍 {trip.start_km.toLocaleString()} ← {trip.end_km!.toLocaleString()} ק"מ</span>
+              <span>🛣️ {(trip.end_km! - trip.start_km).toLocaleString()} ק"מ</span>
+            </div>
+            {trip.notes && <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 6 }}>{trip.notes}</div>}
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button onClick={() => exportExcel(driverTrips)} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 9, padding: '11px 0', fontSize: 12, cursor: 'pointer' }}>📊 Excel</button>
+          <button onClick={() => exportPDF(driverTrips)} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 9, padding: '11px 0', fontSize: 12, cursor: 'pointer' }}>🖨️ PDF</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={pad}>
       {toast && (
@@ -187,7 +329,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
 
       {/* TABS */}
       <div style={{ display: 'flex', gap: 5, marginBottom: 14, overflowX: 'auto', scrollbarWidth: 'none' }}>
-        {[['drivers', '👤', 'נהגים'], ['safety', '✅', 'בטיחות'], ['sop', '📋', 'סד"פים'], ['journal', '📒', 'יומן'], ['vehicle', '🚗', 'רכב']].map(([val, icon, label]) => (
+        {[['drivers', '👤', 'נהגים'], ['safety', '✅', 'בטיחות'], ['sop', '📋', 'סד"פים'], ['journal', '📒', 'יומן'], ['stats', '📊', 'סטטיסטיקות'], ['vehicle', '🚗', 'רכב']].map(([val, icon, label]) => (
           <button key={val} onClick={() => setTab(val as AdminTab)}
             style={{ flexShrink: 0, background: tab === val ? 'var(--red)' : 'var(--bg)', border: `1px solid ${tab === val ? 'var(--red)' : 'var(--border)'}`, color: tab === val ? '#fff' : 'var(--muted)', borderRadius: 8, padding: '7px 12px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
             {icon} {label}
@@ -226,7 +368,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < drivers.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  <div>
+                  <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => { setHistoryDriver(d) }}>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{d.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{d.rank}</div>
                   </div>
@@ -359,8 +501,30 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
       {/* JOURNAL */}
       {tab === 'journal' && (
         <div>
-          {trips.length === 0 && <div style={{ ...card, textAlign: 'center', color: 'var(--muted)', fontSize: 13, padding: 30 }}>אין נסיעות עדיין</div>}
-          {trips.map(trip => (
+          {/* חיפוש + פילטר */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <input
+              value={journalSearch}
+              onChange={e => setJournalSearch(e.target.value)}
+              placeholder="🔍 חיפוש..."
+              style={{ ...inp({ flex: 1, marginBottom: 0 }) }}
+            />
+            <select
+              value={journalDriver}
+              onChange={e => setJournalDriver(e.target.value)}
+              style={{ ...inp({ width: 'auto', flex: 1, marginBottom: 0 }) }}
+            >
+              <option value="all">כל הנהגים</option>
+              {drivers.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+            </select>
+          </div>
+          {/* ייצוא */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button onClick={() => exportExcel(filteredTrips)} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 9, padding: '9px 0', fontSize: 12, cursor: 'pointer' }}>📊 ייצוא Excel</button>
+            <button onClick={() => exportPDF(filteredTrips)} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 9, padding: '9px 0', fontSize: 12, cursor: 'pointer' }}>🖨️ ייצוא PDF</button>
+          </div>
+          {filteredTrips.length === 0 && <div style={{ ...card, textAlign: 'center', color: 'var(--muted)', fontSize: 13, padding: 30 }}>אין נסיעות</div>}
+          {filteredTrips.map(trip => (
             <div key={trip.id} style={card}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{trip.driver_name}</div>
@@ -378,13 +542,11 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
               {trip.status !== 'active' && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      onClick={() => { setEditingTrip(trip); setEditTripFields({ start_km: String(trip.start_km || ''), end_km: String(trip.end_km || ''), notes: trip.notes || '', destination: '' }) }}
+                    <button onClick={() => { setEditingTrip(trip); setEditTripFields({ start_km: String(trip.start_km || ''), end_km: String(trip.end_km || ''), notes: trip.notes || '', destination: '' }) }}
                       style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                       ✏️ ערוך נסיעה
                     </button>
-                    <button
-                      onClick={() => deleteTrip(trip.id)}
+                    <button onClick={() => deleteTrip(trip.id)}
                       style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: 8, padding: '9px 12px', fontSize: 13, cursor: 'pointer' }}>
                       🗑
                     </button>
@@ -394,18 +556,15 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
               {trip.status === 'active' && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      onClick={() => { setClosingTripId(trip.id); setClosingTripName(trip.driver_name); setClosingTripKm('') }}
+                    <button onClick={() => { setClosingTripId(trip.id); setClosingTripName(trip.driver_name); setClosingTripKm('') }}
                       style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                       🔴 סגור ידנית
                     </button>
-                    <button
-                      onClick={() => { setEditingTrip(trip); setEditTripFields({ start_km: String(trip.start_km || ''), end_km: String(trip.end_km || ''), notes: trip.notes || '', destination: '' }) }}
+                    <button onClick={() => { setEditingTrip(trip); setEditTripFields({ start_km: String(trip.start_km || ''), end_km: String(trip.end_km || ''), notes: trip.notes || '', destination: '' }) }}
                       style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-                      ✏️ ערוך נסיעה
+                      ✏️ ערוך
                     </button>
-                    <button
-                      onClick={() => deleteTrip(trip.id)}
+                    <button onClick={() => deleteTrip(trip.id)}
                       style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: 8, padding: '9px 12px', fontSize: 13, cursor: 'pointer' }}>
                       🗑
                     </button>
@@ -416,6 +575,55 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
           ))}
         </div>
       )}
+
+      {/* STATS */}
+      {tab === 'stats' && (() => {
+        const s = calcStats(allTrips)
+        const driverList = Object.entries(s.byDriver).sort((a, b) => b[1].km - a[1].km)
+        return (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+                <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--red)' }}>{s.totalTrips}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>סה"כ נסיעות</div>
+              </div>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+                <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--red)' }}>{s.totalKm.toLocaleString()}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>סה"כ ק"מ</div>
+              </div>
+            </div>
+            {s.topDriver && (
+              <div style={{ ...card, background: 'var(--red-bg)', border: '1px solid var(--red-border)', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600, marginBottom: 6 }}>🏆 נהג מוביל</div>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>{s.topDriver[0]}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{s.topDriver[1].count} נסיעות · {s.topDriver[1].km.toLocaleString()} ק"מ</div>
+              </div>
+            )}
+            <div style={card}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>📊 ק"מ לפי נהג</div>
+              {driverList.length === 0 && <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: 16 }}>אין נתונים עדיין</div>}
+              {driverList.map(([name, data], i) => {
+                const maxKm = driverList[0]?.[1].km || 1
+                return (
+                  <div key={name} style={{ marginBottom: i < driverList.length - 1 ? 14 : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>{name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{data.count} נסיעות · {data.km.toLocaleString()} ק"מ</div>
+                    </div>
+                    <div style={{ background: 'var(--bg3)', borderRadius: 4, height: 7, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', background: 'var(--red)', borderRadius: 4, width: `${(data.km / maxKm) * 100}%`, transition: 'width .4s' }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => exportExcel(allTrips)} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 9, padding: '11px 0', fontSize: 12, cursor: 'pointer' }}>📊 ייצוא Excel</button>
+              <button onClick={() => exportPDF(allTrips)} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 9, padding: '11px 0', fontSize: 12, cursor: 'pointer' }}>🖨️ ייצוא PDF</button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* VEHICLE */}
       {tab === 'vehicle' && (
@@ -453,11 +661,9 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>{editingTrip?.driver_name}</div>
             <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>ק"מ פתיחה</label>
             <input type="number" value={editTripFields.start_km} onChange={e => setEditTripFields(p => ({ ...p, start_km: e.target.value }))}
-              placeholder="ק&quot;מ פתיחה"
               style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '10px 13px', width: '100%', fontSize: 14, marginBottom: 10, direction: 'ltr', textAlign: 'right' }} />
             <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>ק"מ סיום</label>
             <input type="number" value={editTripFields.end_km} onChange={e => setEditTripFields(p => ({ ...p, end_km: e.target.value }))}
-              placeholder="ק&quot;מ סיום"
               style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '10px 13px', width: '100%', fontSize: 14, marginBottom: 10, direction: 'ltr', textAlign: 'right' }} />
             <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>מטרת נסיעה</label>
             <input type="text" value={editTripFields.notes} onChange={e => setEditTripFields(p => ({ ...p, notes: e.target.value }))}
@@ -476,9 +682,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
                   const fullNote = [editTripFields.notes, editTripFields.destination ? `יעד: ${editTripFields.destination}` : ''].filter(Boolean).join(' · ')
                   if (fullNote) updates.notes = fullNote
                   await supabase.from('trips').update(updates).eq('id', editingTrip!.id)
-                  setEditingTrip(null)
-                  loadAll()
-                  showToast('נסיעה עודכנה ✓')
+                  setEditingTrip(null); loadAll(); showToast('נסיעה עודכנה ✓')
                 }}
                 style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 9, padding: '12px 0', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                 ✓ שמור שינויים
@@ -506,16 +710,9 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
               <button
                 onClick={async () => {
                   if (!closingTripKm) return
-                  await supabase.from('trips').update({
-                    status: 'completed',
-                    end_time: new Date().toISOString(),
-                    end_km: parseInt(closingTripKm),
-                  }).eq('id', closingTripId)
+                  await supabase.from('trips').update({ status: 'completed', end_time: new Date().toISOString(), end_km: parseInt(closingTripKm) }).eq('id', closingTripId)
                   await supabase.from('vehicle_stats').update({ current_km: parseInt(closingTripKm), updated_at: new Date().toISOString() }).neq('id', '00000000-0000-0000-0000-000000000000')
-                  setClosingTripId(null)
-                  setClosingTripKm('')
-                  loadAll()
-                  showToast('נסיעה נסגרה ✓')
+                  setClosingTripId(null); setClosingTripKm(''); loadAll(); showToast('נסיעה נסגרה ✓')
                   if (onTripClosed) onTripClosed()
                 }}
                 disabled={!closingTripKm}
