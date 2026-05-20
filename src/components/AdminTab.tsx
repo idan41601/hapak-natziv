@@ -83,6 +83,12 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
     loadAll(); showToast('נהג נמחק')
   }
 
+  async function deleteTrip(id: string) {
+    if (!confirm('למחוק נסיעה זו לצמיתות?')) return
+    await supabase.from('trips').delete().eq('id', id)
+    loadAll(); showToast('נסיעה נמחקה')
+  }
+
   async function saveDriver() {
     if (!editingDriver) return
     await supabase.from('drivers').update({ name: editingDriver.name, rank: editingDriver.rank, pin: editingDriver.pin || null }).eq('id', editingDriver.id)
@@ -368,11 +374,18 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
               {trip.notes && <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)', lineHeight: 1.5 }}>{trip.notes}</div>}
               {trip.status !== 'active' && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-                  <button
-                    onClick={() => { setEditingTrip(trip); setEditTripFields({ start_km: String(trip.start_km || ''), end_km: String(trip.end_km || ''), notes: trip.notes || '', destination: '' }) }}
-                    style={{ width: '100%', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-                    ✏️ ערוך נסיעה
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => { setEditingTrip(trip); setEditTripFields({ start_km: String(trip.start_km || ''), end_km: String(trip.end_km || ''), notes: trip.notes || '', destination: '' }) }}
+                      style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                      ✏️ ערוך נסיעה
+                    </button>
+                    <button
+                      onClick={() => deleteTrip(trip.id)}
+                      style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: 8, padding: '9px 12px', fontSize: 13, cursor: 'pointer' }}>
+                      🗑
+                    </button>
+                  </div>
                 </div>
               )}
               {trip.status === 'active' && (
@@ -387,6 +400,11 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
                       onClick={() => { setEditingTrip(trip); setEditTripFields({ start_km: String(trip.start_km || ''), end_km: String(trip.end_km || ''), notes: trip.notes || '', destination: '' }) }}
                       style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                       ✏️ ערוך נסיעה
+                    </button>
+                    <button
+                      onClick={() => deleteTrip(trip.id)}
+                      style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: 8, padding: '9px 12px', fontSize: 13, cursor: 'pointer' }}>
+                      🗑
                     </button>
                   </div>
                 </div>
