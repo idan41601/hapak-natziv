@@ -423,8 +423,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
           </div>
         </div>
       )}
-    </div>
-  )
+
       {/* MODAL - עריכת נסיעה */}
       {editingTrip && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }}>
@@ -471,6 +470,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
           </div>
         </div>
       )}
+
       {/* MODAL - סגירת נסיעה ידנית */}
       {closingTripId && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }}>
@@ -509,4 +509,6 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
           </div>
         </div>
       )}
+    </div>
+  )
 }
