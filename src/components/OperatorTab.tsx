@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-interface SopStep { id: string; title: string; description: string; order_index: number; extra_alert?: string }
+interface SopStep { id: string; title: string; description: string; order_index: number; extra_alert?: string | null }
 
 type View = 'menu' | 'exterior' | 'interior' | 'mast'
 
@@ -16,8 +16,7 @@ const SOP_TYPES = [
 export default function OperatorTab() {
   const [view, setView] = useState<View>('menu')
   const [steps, setSteps] = useState<SopStep[]>([])
-  const [showHelmetAlert, setShowHelmetAlert] = useState(false)
-  const [helmetConfirmed, setHelmetConfirmed] = useState(false)
+  const [pendingAlert, setPendingAlert] = useState<{ text: string; stepIndex: number } | null>(null)
 
   useEffect(() => {
     if (view !== 'menu') {
@@ -25,9 +24,12 @@ export default function OperatorTab() {
         .then(({ data }) => {
           if (data) {
             setSteps(data)
-            if (view === 'interior') {
-              setShowHelmetAlert(true)
-              setHelmetConfirmed(false)
+            // הצג התראה של השלב הראשון אם יש
+            const first = data[0]
+            if (first?.extra_alert) {
+              setPendingAlert({ text: first.extra_alert, stepIndex: 0 })
+            } else {
+              setPendingAlert(null)
             }
           }
         })
@@ -42,7 +44,7 @@ export default function OperatorTab() {
         נוהלי הפעלה
       </div>
       {SOP_TYPES.map(s => (
-        <div key={s.id} onClick={() => setView(s.id as View)}
+        <div key={s.id} onClick={() => { setView(s.id as View); setPendingAlert(null) }}
           style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'var(--bg)', border: '1px solid var(--border)', borderRight: '3px solid var(--red)', borderRadius: 10, padding: '16px 14px', marginBottom: 10, cursor: 'pointer' }}>
           <span style={{ fontSize: 30 }}>{s.icon}</span>
           <div style={{ flex: 1 }}>
@@ -57,20 +59,20 @@ export default function OperatorTab() {
 
   const currentSop = SOP_TYPES.find(s => s.id === view)!
 
-  // Helmet alert for interior
-  if (view === 'interior' && showHelmetAlert && !helmetConfirmed) return (
+  // התראה דינמית לפני שלב
+  if (pendingAlert) return (
     <div style={pad}>
       <div style={{ background: 'var(--red-bg)', border: '2px solid var(--red)', borderRadius: 12, padding: 24, textAlign: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>⛑️</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--red)', marginBottom: 10 }}>ציוד מגן חובה!</div>
-        <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.8 }}>
-          חובה לחבוש <strong>קסדה</strong> ולהרכיב <strong>כפפות</strong>
-          <br />לפני הנחת פלטות המייצבים
+        <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--red)', marginBottom: 10 }}>שים לב!</div>
+        <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.8, fontWeight: 500 }}>
+          {pendingAlert.text}
         </div>
       </div>
-      <button onClick={() => setHelmetConfirmed(true)}
+      <button
+        onClick={() => setPendingAlert(null)}
         style={{ width: '100%', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 0', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-        ✓ מצויד כראוי — המשך
+        ✓ קראתי ואישרתי — המשך
       </button>
       <button onClick={() => setView('menu')}
         style={{ width: '100%', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 10, padding: '11px 0', fontSize: 13, cursor: 'pointer', marginTop: 8 }}>
@@ -90,15 +92,26 @@ export default function OperatorTab() {
       </div>
       <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
         {steps.map((step, i) => (
-          <div key={step.id} style={{ display: 'flex', gap: 12, marginBottom: i < steps.length - 1 ? 14 : 0 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: '50%', background: 'var(--red)', color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, flexShrink: 0, marginTop: 1
-            }}>{i + 1}</div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', marginBottom: 3 }}>{step.title}</div>
-              {step.description && <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>{step.description}</div>}
+          <div key={step.id} style={{ marginBottom: i < steps.length - 1 ? 14 : 0 }}>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%', background: 'var(--red)', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, flexShrink: 0, marginTop: 1
+              }}>{i + 1}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', marginBottom: 3 }}>{step.title}</div>
+                {step.description && <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>{step.description}</div>}
+                {/* התראה של השלב הבא */}
+                {step.extra_alert && i < steps.length - 1 && (
+                  <div
+                    onClick={() => setPendingAlert({ text: step.extra_alert!, stepIndex: i + 1 })}
+                    style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--amber)', background: 'var(--amber-bg)', border: '1px solid var(--amber-border)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontWeight: 500 }}>
+                    ⚠️ התראה לשלב הבא
+                  </div>
+                )}
+              </div>
             </div>
+            {i < steps.length - 1 && <div style={{ borderBottom: '1px solid var(--border)', marginTop: 14 }} />}
           </div>
         ))}
       </div>
