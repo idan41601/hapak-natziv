@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 
 const ADMIN_PASSWORD = 'chapak2026'
 
-interface Driver { id: string; name: string; rank: string; active: boolean }
+interface Driver { id: string; name: string; rank: string; active: boolean; pin: string | null }
 interface SafetyItem { id: string; category: string; text: string; note: string; order_index: number; active: boolean }
 interface SopStep { id: string; sop_type: string; title: string; description: string; order_index: number }
 interface Trip { id: string; driver_name: string; start_km: number; end_km: number | null; start_time: string; end_time: string | null; notes: string | null; status: string }
@@ -85,7 +85,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
 
   async function saveDriver() {
     if (!editingDriver) return
-    await supabase.from('drivers').update({ name: editingDriver.name, rank: editingDriver.rank }).eq('id', editingDriver.id)
+    await supabase.from('drivers').update({ name: editingDriver.name, rank: editingDriver.rank, pin: editingDriver.pin || null }).eq('id', editingDriver.id)
     setEditingDriver(null); loadAll(); showToast('נהג עודכן ✓')
   }
 
@@ -212,6 +212,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
                 <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
                   <input value={editingDriver.name} onChange={e => setEditingDriver(p => p ? { ...p, name: e.target.value } : p)} style={{ ...inp(), marginBottom: 8 }} />
                   <input value={editingDriver.rank} onChange={e => setEditingDriver(p => p ? { ...p, rank: e.target.value } : p)} style={{ ...inp(), marginBottom: 8 }} />
+                  <input value={editingDriver.pin || ''} onChange={e => setEditingDriver(p => p ? { ...p, pin: e.target.value } : p)} placeholder="PIN (4 ספרות)" maxLength={4} style={{ ...inp(), marginBottom: 8, direction: 'ltr', textAlign: 'center', letterSpacing: 6, fontWeight: 600 }} />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={saveDriver} style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 0', fontSize: 12, cursor: 'pointer' }}>שמור</button>
                     <button onClick={() => setEditingDriver(null)} style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 7, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>ביטול</button>
@@ -223,9 +224,12 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{d.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{d.rank}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     <span onClick={() => toggleDriver(d)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, fontWeight: 500, cursor: 'pointer', background: d.active ? 'var(--green-bg)' : 'var(--bg3)', color: d.active ? 'var(--green)' : 'var(--muted)', border: `1px solid ${d.active ? 'var(--green-border)' : 'var(--border)'}` }}>
                       {d.active ? 'פעיל' : 'מושבת'}
+                    </span>
+                    <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, fontWeight: 500, background: d.pin ? 'var(--amber-bg)' : 'var(--bg3)', color: d.pin ? 'var(--amber)' : 'var(--muted)', border: `1px solid ${d.pin ? 'var(--amber-border)' : 'var(--border)'}` }}>
+                      {d.pin ? '🔑 PIN' : 'אין PIN'}
                     </span>
                     <button onClick={() => setEditingDriver(d)} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 6, padding: '4px 7px', fontSize: 13, cursor: 'pointer' }}>✏️</button>
                     <button onClick={() => deleteDriver(d.id)} style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: 6, padding: '4px 7px', fontSize: 13, cursor: 'pointer' }}>🗑</button>
@@ -426,7 +430,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: 'var(--bg)', borderRadius: '16px 16px 0 0', padding: '20px 18px 30px', width: '100%', maxWidth: 390 }}>
             <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>✏️ עריכת נסיעה</div>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>{editingTrip.driver_name}</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>{editingTrip?.driver_name}</div>
             <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>ק"מ פתיחה</label>
             <input type="number" value={editTripFields.start_km} onChange={e => setEditTripFields(p => ({ ...p, start_km: e.target.value }))}
               placeholder="ק&quot;מ פתיחה"
@@ -451,7 +455,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
                   if (editTripFields.end_km) updates.end_km = parseInt(editTripFields.end_km)
                   const fullNote = [editTripFields.notes, editTripFields.destination ? `יעד: ${editTripFields.destination}` : ''].filter(Boolean).join(' · ')
                   if (fullNote) updates.notes = fullNote
-                  await supabase.from('trips').update(updates).eq('id', editingTrip.id)
+                  await supabase.from('trips').update(updates).eq('id', editingTrip!.id)
                   setEditingTrip(null)
                   loadAll()
                   showToast('נסיעה עודכנה ✓')
