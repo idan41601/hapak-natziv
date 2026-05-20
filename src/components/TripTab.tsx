@@ -31,6 +31,7 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
   const [selectedPurpose, setSelectedPurpose] = useState<typeof TRIP_PURPOSES[0] | null>(null)
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [startKm, setStartKm] = useState('')
+  const [startDestination, setStartDestination] = useState('')
   const [endKm, setEndKm] = useState('')
   const [endNote, setEndNote] = useState('')
   const [showEndModal, setShowEndModal] = useState(false)
@@ -64,11 +65,12 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
 
   async function startTrip() {
     if (!selectedDriver || !startKm) return
+    const fullNote = [selectedPurpose?.label, startDestination ? `יעד: ${startDestination}` : ''].filter(Boolean).join(' · ')
     const { data } = await supabase.from('trips').insert({
       driver_id: selectedDriver.id,
       driver_name: selectedDriver.name,
       start_km: parseInt(startKm),
-      notes: selectedPurpose?.label,
+      notes: fullNote || selectedPurpose?.label,
       status: 'active'
     }).select().single()
     if (data) {
@@ -93,6 +95,7 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
     setSelectedPurpose(null)
     setChecked(new Set())
     setStartKm('')
+    setStartDestination('')
     onTripEnd()
   }
 
@@ -272,7 +275,11 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
         <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>קריאת מד ק&quot;מ בתחילת נסיעה</label>
         <input type="number" value={startKm} onChange={e => setStartKm(e.target.value)}
           placeholder={String(vehicleKm)}
-          style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '11px 13px', width: '100%', fontSize: 15, marginBottom: 12, direction: 'ltr', textAlign: 'right' }} />
+          style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '11px 13px', width: '100%', fontSize: 15, marginBottom: 10, direction: 'ltr', textAlign: 'right' }} />
+        <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>יעד הנסיעה (אופציונלי)</label>
+        <input type="text" value={startDestination} onChange={e => setStartDestination(e.target.value)}
+          placeholder="לדוגמה: תחנה מרכזית, רח' הרצל..."
+          style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '11px 13px', width: '100%', fontSize: 14, marginBottom: 12, direction: 'rtl' }} />
         <button onClick={() => { if (allChecked && startKm) setStep('alert-height') }}
           disabled={!allChecked || !startKm}
           style={btn('var(--red)', !allChecked || !startKm)}>
