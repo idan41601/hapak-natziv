@@ -292,7 +292,7 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
         <div style={{ fontSize: 40, marginBottom: 12 }}>🚧</div>
         <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--amber)', marginBottom: 8 }}>אזהרה!</div>
         <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.8, fontWeight: 500 }}>
-          גובה הרכב הוא <strong>4.10 מטרים</strong>
+          גובה הרכב הוא <strong>4.50 מטרים</strong>
           <br />
           אין לעבור מתחת לגשרים נמוכים מגובה הרכב
           <br />
