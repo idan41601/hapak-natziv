@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-interface Driver { id: string; name: string; rank: string }
+interface Driver { id: string; name: string; rank: string; pin: string | null }
 interface CheckItem { id: string; text: string; order_index: number }
 
 const TRIP_PURPOSES = [
@@ -15,7 +15,7 @@ const TRIP_PURPOSES = [
   { id: 'refresh', label: 'נסיעת ריענון נהיגה', icon: '🚗' },
 ]
 
-type Step = 'home' | 'select-driver' | 'select-purpose' | 'alert-escort' | 'checklist' | 'alert-height' | 'active-trip'
+type Step = 'home' | 'select-driver' | 'pin-verify' | 'select-purpose' | 'alert-escort' | 'checklist' | 'alert-height' | 'active-trip'
 
 interface Props {
   activeTrip: any
@@ -35,6 +35,8 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
   const [endNote, setEndNote] = useState('')
   const [showEndModal, setShowEndModal] = useState(false)
   const [vehicleKm, setVehicleKm] = useState(48420)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState(false)
 
   useEffect(() => {
     supabase.from('drivers').select('*').eq('active', true).order('name')
@@ -127,7 +129,7 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
     <div style={pad}>
       <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>בחר נהג מורשה</div>
       {drivers.map(d => (
-        <div key={d.id} onClick={() => { setSelectedDriver(d); setStep('select-purpose') }}
+        <div key={d.id} onClick={() => { setSelectedDriver(d); setPinInput(''); setPinError(false); if (d.pin) setStep('pin-verify'); else setStep('select-purpose') }}
           style={{ display: 'flex', alignItems: 'center', gap: 12, ...card, cursor: 'pointer', marginBottom: 8 }}>
           <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--wood-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 500, color: 'var(--wood)', flexShrink: 0 }}>
             {d.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
@@ -139,6 +141,47 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
           <span style={{ color: 'var(--dim)', fontSize: 18 }}>‹</span>
         </div>
       ))}
+    </div>
+  )
+
+  // PIN VERIFY
+  if (step === 'pin-verify') return (
+    <div style={pad}>
+      <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 14 }}>אימות זהות</div>
+      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, textAlign: 'center' }}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--wood-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 600, color: 'var(--wood)', margin: '0 auto 12px' }}>
+          {selectedDriver?.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{selectedDriver?.name}</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 20 }}>{selectedDriver?.rank}</div>
+        <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>הכנס קוד PIN אישי</div>
+        <input
+          type="password"
+          inputMode="numeric"
+          maxLength={4}
+          value={pinInput}
+          onChange={e => { setPinInput(e.target.value); setPinError(false) }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              if (pinInput === selectedDriver?.pin) { setPinError(false); setStep('select-purpose') }
+              else setPinError(true)
+            }
+          }}
+          placeholder="• • • •"
+          style={{ background: 'var(--bg2)', border: `1.5px solid ${pinError ? 'var(--red)' : 'var(--border2)'}`, borderRadius: 10, padding: '14px 0', width: '100%', fontSize: 28, textAlign: 'center', letterSpacing: 12, marginBottom: 8, direction: 'ltr' }}
+          autoFocus
+        />
+        {pinError && <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 10 }}>קוד PIN שגוי, נסה שנית</div>}
+        <button
+          onClick={() => { if (pinInput === selectedDriver?.pin) { setPinError(false); setStep('select-purpose') } else setPinError(true) }}
+          style={{ width: '100%', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 0', fontSize: 14, fontWeight: 500, cursor: 'pointer', marginTop: 4 }}>
+          ✓ אמת וכנס
+        </button>
+        <button onClick={() => setStep('select-driver')}
+          style={{ width: '100%', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 10, padding: '11px 0', fontSize: 13, cursor: 'pointer', marginTop: 8 }}>
+          חזור לבחירת נהג
+        </button>
+      </div>
     </div>
   )
 
