@@ -10,10 +10,11 @@ interface SafetyItem { id: string; category: string; text: string; note: string;
 interface SopStep { id: string; sop_type: string; title: string; description: string; order_index: number }
 interface Trip { id: string; driver_name: string; start_km: number; end_km: number | null; start_time: string; end_time: string | null; notes: string | null; status: string }
 interface VehicleStat { current_km: number; next_service_km: number }
+interface Props { onTripClosed?: () => void }
 
 type AdminTab = 'drivers' | 'safety' | 'sop' | 'journal' | 'vehicle'
 
-export default function AdminTab() {
+export default function AdminTab({ onTripClosed }: Props = {}) {
   const [authed, setAuthed] = useState(false)
   const [pw, setPw] = useState('')
   const [pwErr, setPwErr] = useState(false)
@@ -34,6 +35,11 @@ export default function AdminTab() {
   const [newSafety, setNewSafety] = useState({ category: 'כללי', text: '', note: '' })
   const [newSop, setNewSop] = useState({ title: '', description: '' })
   const [newKm, setNewKm] = useState('')
+  const [closingTripId, setClosingTripId] = useState<string | null>(null)
+  const [closingTripKm, setClosingTripKm] = useState('')
+  const [closingTripName, setClosingTripName] = useState('')
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null)
+  const [editTripFields, setEditTripFields] = useState({ start_km: '', end_km: '', notes: '', destination: '' })
   const [toast, setToast] = useState('')
 
   useEffect(() => { if (authed) loadAll() }, [authed, tab, sopType])
@@ -356,21 +362,29 @@ export default function AdminTab() {
                 {trip.end_km && <span>🛣️ {(trip.end_km - trip.start_km).toLocaleString()} ק&quot;מ</span>}
               </div>
               {trip.notes && <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)', lineHeight: 1.5 }}>{trip.notes}</div>}
-              {trip.status === 'active' && (
+              {trip.status !== 'active' && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
                   <button
-                    onClick={async () => {
-                      if (!confirm(`לסגור את הנסיעה של ${trip.driver_name}?`)) return
-                      await supabase.from('trips').update({
-                        status: 'completed',
-                        end_time: new Date().toISOString(),
-                      }).eq('id', trip.id)
-                      loadAll()
-                      showToast('נסיעה נסגרה ✓')
-                    }}
-                    style={{ width: '100%', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-                    🔴 סגור נסיעה ידנית
+                    onClick={() => { setEditingTrip(trip); setEditTripFields({ start_km: String(trip.start_km || ''), end_km: String(trip.end_km || ''), notes: trip.notes || '', destination: '' }) }}
+                    style={{ width: '100%', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                    ✏️ ערוך נסיעה
                   </button>
+                </div>
+              )}
+              {trip.status === 'active' && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => { setClosingTripId(trip.id); setClosingTripName(trip.driver_name); setClosingTripKm('') }}
+                      style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                      🔴 סגור ידנית
+                    </button>
+                    <button
+                      onClick={() => { setEditingTrip(trip); setEditTripFields({ start_km: String(trip.start_km || ''), end_km: String(trip.end_km || ''), notes: trip.notes || '', destination: '' }) }}
+                      style={{ flex: 1, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                      ✏️ ערוך נסיעה
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -407,4 +421,88 @@ export default function AdminTab() {
       )}
     </div>
   )
+      {/* MODAL - עריכת נסיעה */}
+      {editingTrip && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }}>
+          <div style={{ background: 'var(--bg)', borderRadius: '16px 16px 0 0', padding: '20px 18px 30px', width: '100%', maxWidth: 390 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>✏️ עריכת נסיעה</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>{editingTrip.driver_name}</div>
+            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>ק"מ פתיחה</label>
+            <input type="number" value={editTripFields.start_km} onChange={e => setEditTripFields(p => ({ ...p, start_km: e.target.value }))}
+              placeholder="ק&quot;מ פתיחה"
+              style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '10px 13px', width: '100%', fontSize: 14, marginBottom: 10, direction: 'ltr', textAlign: 'right' }} />
+            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>ק"מ סיום</label>
+            <input type="number" value={editTripFields.end_km} onChange={e => setEditTripFields(p => ({ ...p, end_km: e.target.value }))}
+              placeholder="ק&quot;מ סיום"
+              style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '10px 13px', width: '100%', fontSize: 14, marginBottom: 10, direction: 'ltr', textAlign: 'right' }} />
+            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>מטרת נסיעה</label>
+            <input type="text" value={editTripFields.notes} onChange={e => setEditTripFields(p => ({ ...p, notes: e.target.value }))}
+              placeholder="לדוגמה: אירוע מבצעי, תרגיל..."
+              style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '10px 13px', width: '100%', fontSize: 14, marginBottom: 10, direction: 'rtl' }} />
+            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>יעד</label>
+            <input type="text" value={editTripFields.destination} onChange={e => setEditTripFields(p => ({ ...p, destination: e.target.value }))}
+              placeholder="לדוגמה: תחנה מרכזית, רח' הרצל..."
+              style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '10px 13px', width: '100%', fontSize: 14, marginBottom: 16, direction: 'rtl' }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={async () => {
+                  const updates: any = {}
+                  if (editTripFields.start_km) updates.start_km = parseInt(editTripFields.start_km)
+                  if (editTripFields.end_km) updates.end_km = parseInt(editTripFields.end_km)
+                  const fullNote = [editTripFields.notes, editTripFields.destination ? `יעד: ${editTripFields.destination}` : ''].filter(Boolean).join(' · ')
+                  if (fullNote) updates.notes = fullNote
+                  await supabase.from('trips').update(updates).eq('id', editingTrip.id)
+                  setEditingTrip(null)
+                  loadAll()
+                  showToast('נסיעה עודכנה ✓')
+                }}
+                style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 9, padding: '12px 0', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                ✓ שמור שינויים
+              </button>
+              <button onClick={() => setEditingTrip(null)}
+                style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 9, padding: '12px 16px', fontSize: 12, cursor: 'pointer' }}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL - סגירת נסיעה ידנית */}
+      {closingTripId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }}>
+          <div style={{ background: 'var(--bg)', borderRadius: '16px 16px 0 0', padding: '20px 18px 30px', width: '100%', maxWidth: 390 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>🔴 סגירת נסיעה ידנית</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>{closingTripName}</div>
+            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>ק"מ בסיום הנסיעה</label>
+            <input type="number" value={closingTripKm} onChange={e => setClosingTripKm(e.target.value)}
+              placeholder="הכנס ק&quot;מ נוכחי"
+              style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 9, padding: '11px 13px', width: '100%', fontSize: 15, marginBottom: 14, direction: 'ltr', textAlign: 'right' }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={async () => {
+                  if (!closingTripKm) return
+                  await supabase.from('trips').update({
+                    status: 'completed',
+                    end_time: new Date().toISOString(),
+                    end_km: parseInt(closingTripKm),
+                  }).eq('id', closingTripId)
+                  await supabase.from('vehicle_stats').update({ current_km: parseInt(closingTripKm), updated_at: new Date().toISOString() }).neq('id', '00000000-0000-0000-0000-000000000000')
+                  setClosingTripId(null)
+                  setClosingTripKm('')
+                  loadAll()
+                  showToast('נסיעה נסגרה ✓')
+                  if (onTripClosed) onTripClosed()
+                }}
+                disabled={!closingTripKm}
+                style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 9, padding: '12px 0', fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: closingTripKm ? 1 : .4 }}>
+                ✓ אשר סגירה
+              </button>
+              <button onClick={() => setClosingTripId(null)}
+                style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 9, padding: '12px 16px', fontSize: 12, cursor: 'pointer' }}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 }
