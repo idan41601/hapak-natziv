@@ -356,6 +356,23 @@ export default function AdminTab() {
                 {trip.end_km && <span>🛣️ {(trip.end_km - trip.start_km).toLocaleString()} ק&quot;מ</span>}
               </div>
               {trip.notes && <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)', lineHeight: 1.5 }}>{trip.notes}</div>}
+              {trip.status === 'active' && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`לסגור את הנסיעה של ${trip.driver_name}?`)) return
+                      await supabase.from('trips').update({
+                        status: 'completed',
+                        end_time: new Date().toISOString(),
+                      }).eq('id', trip.id)
+                      loadAll()
+                      showToast('נסיעה נסגרה ✓')
+                    }}
+                    style={{ width: '100%', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                    🔴 סגור נסיעה ידנית
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
