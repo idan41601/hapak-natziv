@@ -83,7 +83,7 @@ export default function OperatorTab() {
         </div>
       </div>
       <button
-        onClick={() => setSubView('steps')}
+        onClick={() => setSubView('confirm-exterior')}
         style={{ width: '100%', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 12, padding: '15px 0', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
         ✓ חבשתי קסדה — המשך
       </button>
@@ -213,12 +213,9 @@ export default function OperatorTab() {
         {/* כפתור סיום */}
         <button
           onClick={() => {
-            // שלב 8 בחוץ — קודם מסך קסדה
-            if (isExterior && steps[7]?.extra_alert) {
-              setSubView('helmet-alert')
-            } else {
-              handleFinish()
-            }
+            if (isExterior) setSubView('helmet-alert')
+            else if (isInterior) setSubView('confirm-interior')
+            else setView('menu')
           }}
           style={{ width: '100%', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 12, padding: '14px 0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
           {isExterior ? '✓ ביצעתי את כל השלבים — עבור לסד"פ פנים' :
