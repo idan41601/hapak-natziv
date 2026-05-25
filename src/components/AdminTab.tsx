@@ -8,6 +8,7 @@ const ADMIN_PASSWORD = 'chapak2026'
 interface Driver { id: string; name: string; rank: string; active: boolean; pin: string | null }
 interface SafetyItem { id: string; category: string; text: string; note: string; order_index: number; active: boolean }
 interface SopStep { id: string; sop_type: string; title: string; description: string; order_index: number; extra_alert: string | null }
+interface SopType { id: string; name: string }
 interface Trip { id: string; driver_name: string; start_km: number; end_km: number | null; start_time: string; end_time: string | null; notes: string | null; status: string }
 interface VehicleStat { current_km: number; next_service_km: number }
 interface Props { onTripClosed?: () => void }
@@ -22,7 +23,9 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [safetyItems, setSafetyItems] = useState<SafetyItem[]>([])
   const [sopSteps, setSopSteps] = useState<SopStep[]>([])
-  const [sopType, setSopType] = useState<'exterior' | 'interior' | 'mast'>('exterior')
+  const [sopTypes, setSopTypes] = useState<SopType[]>([])
+  const [sopType, setSopType] = useState<'exterior' | 'interior' | 'mast' | 'exterior2'>('exterior')
+  const [editingSopTypeName, setEditingSopTypeName] = useState<string | null>(null)
   const [trips, setTrips] = useState<Trip[]>([])
   const [allTrips, setAllTrips] = useState<Trip[]>([])
   const [vehicleStat, setVehicleStat] = useState<VehicleStat | null>(null)
@@ -52,13 +55,14 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
   useEffect(() => { if (authed) loadAll() }, [authed, tab, sopType])
 
   const loadAll = useCallback(async () => {
-    const [d, s, sop, t, v, all] = await Promise.all([
+    const [d, s, sop, t, v, all, st] = await Promise.all([
       supabase.from('drivers').select('*').order('name'),
       supabase.from('safety_items').select('*').order('order_index'),
       supabase.from('sop_steps').select('*').eq('sop_type', sopType).order('order_index'),
       supabase.from('trips').select('*').order('start_time', { ascending: false }).limit(100),
       supabase.from('vehicle_stats').select('*').single(),
       supabase.from('trips').select('*').order('start_time', { ascending: false }),
+      supabase.from('sop_types').select('*'),
     ])
     if (d.data) setDrivers(d.data)
     if (s.data) setSafetyItems(s.data)
@@ -66,6 +70,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
     if (t.data) setTrips(t.data)
     if (v.data) setVehicleStat(v.data)
     if (all.data) setAllTrips(all.data)
+    if (st.data) setSopTypes(st.data)
   }, [sopType])
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
@@ -437,17 +442,36 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
         </div>
       )}
 
-      {/* SOP */}
       {tab === 'sop' && (
         <div>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-            {[['exterior', 'חוץ'], ['interior', 'פנים'], ['mast', 'תורן']].map(([val, label]) => (
-              <button key={val} onClick={() => setSopType(val as typeof sopType)}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+            {([['exterior', 'חוץ'], ['interior', 'פנים'], ['mast', 'תורן'], ['exterior2', 'השלמת חוץ']] as [typeof sopType, string][]).map(([val, label]) => (
+              <button key={val} onClick={() => setSopType(val)}
                 style={{ flex: 1, background: sopType === val ? 'var(--red)' : 'var(--bg3)', border: `1px solid ${sopType === val ? 'var(--red)' : 'var(--border)'}`, color: sopType === val ? '#fff' : 'var(--muted)', borderRadius: 7, padding: '7px 0', fontSize: 12, cursor: 'pointer' }}>
                 {label}
               </button>
             ))}
           </div>
+          {/* עריכת שם הסד"פ */}
+          {editingSopTypeName !== null ? (
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 8, padding: 10, marginBottom: 10, display: 'flex', gap: 8 }}>
+              <input value={editingSopTypeName} onChange={e => setEditingSopTypeName(e.target.value)}
+                style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border2)', borderRadius: 7, padding: '8px 10px', fontSize: 13, direction: 'rtl' }} />
+              <button onClick={async () => {
+                await supabase.from('sop_types').update({ name: editingSopTypeName }).eq('id', sopType)
+                setEditingSopTypeName(null); loadAll(); showToast('שם עודכן ✓')
+              }} style={{ background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>שמור</button>
+              <button onClick={() => setEditingSopTypeName(null)} style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 7, padding: '8px 10px', fontSize: 12, cursor: 'pointer' }}>ביטול</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+                שם: <strong style={{ color: 'var(--text)' }}>{sopTypes.find(t => t.id === sopType)?.name ?? sopType}</strong>
+              </div>
+              <button onClick={() => setEditingSopTypeName(sopTypes.find(t => t.id === sopType)?.name ?? '')}
+                style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--muted)', borderRadius: 7, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>✏️ שנה שם</button>
+            </div>
+          )}
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>📋 שלבי הסד&quot;פ</div>
