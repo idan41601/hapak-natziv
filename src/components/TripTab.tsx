@@ -120,9 +120,26 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
         </div>
       </div>
       <div style={pad}>
-        <button onClick={() => setStep('select-driver')} style={btn()}>
-          🚗 התחל נסיעה חדשה
-        </button>
+        {activeTrip ? (
+          <div>
+            <div style={{ background: 'var(--amber-bg)', border: '1.5px solid var(--amber)', borderRadius: 10, padding: '14px 16px', marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--amber)', marginBottom: 6 }}>⚠️ נסיעה פעילה קיימת</div>
+              <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>
+                <strong>{activeTrip.driver_name}</strong> נמצא בנסיעה פעילה
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                יש לסיים את הנסיעה הנוכחית לפני פתיחת נסיעה חדשה
+              </div>
+            </div>
+            <button onClick={() => setStep('active-trip')} style={btn()}>
+              🔴 עבור לנסיעה הפעילה וסיים אותה
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setStep('select-driver')} style={btn()}>
+            🚗 התחל נסיעה חדשה
+          </button>
+        )}
       </div>
     </div>
   )
@@ -315,6 +332,16 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
   // ACTIVE TRIP
   if (step === 'active-trip' && activeTrip) return (
     <div style={pad}>
+      {/* תזכורת לסגור לפני מעבר לסד"פ */}
+      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 18 }}>📋</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>ניתן לעבור לטאב מפעיל</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>זכור לחזור ולסגור את הנסיעה בסיום</div>
+        </div>
+        <span style={{ fontSize: 11, color: 'var(--amber)', fontWeight: 600, background: 'var(--amber-bg)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--amber-border)' }}>פעיל</span>
+      </div>
+
       <div style={{ background: 'var(--amber-bg)', border: '1px solid var(--amber-border)', borderRadius: 12, padding: 18, marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--wood-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600, color: 'var(--wood)' }}>
