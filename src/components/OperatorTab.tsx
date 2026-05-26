@@ -72,24 +72,6 @@ export default function OperatorTab() {
     </div>
   )
 
-  // מסך התראת קסדה — מסך מלא חסום
-  if (subView === 'helmet-alert') return (
-    <div style={{ ...pad, display: 'flex', flexDirection: 'column', minHeight: '80vh', justifyContent: 'center' }}>
-      <div style={{ background: 'var(--red-bg)', border: '2px solid var(--red)', borderRadius: 16, padding: 28, textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ fontSize: 52, marginBottom: 16 }}>⛑️</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--red)', marginBottom: 12 }}>חובה לחבוש קסדה!</div>
-        <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.9, fontWeight: 500 }}>
-          יש לחבוש קסדה ולהרכיב כפפות לפני הנחת הפלטות
-        </div>
-      </div>
-      <button
-        onClick={() => setSubView('confirm-exterior')}
-        style={{ width: '100%', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 12, padding: '15px 0', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-        ✓ חבשתי קסדה — המשך
-      </button>
-    </div>
-  )
-
   // מסך אישור סיום סד"פ חוץ → מעבר לפנים
   if (subView === 'confirm-exterior') return (
     <div style={{ ...pad, display: 'flex', flexDirection: 'column', minHeight: '80vh', justifyContent: 'center' }}>
@@ -213,7 +195,7 @@ export default function OperatorTab() {
         {/* כפתור סיום */}
         <button
           onClick={() => {
-            if (isExterior) setSubView('helmet-alert')
+            if (isExterior) setSubView('confirm-exterior')
             else if (isInterior) setSubView('confirm-interior')
             else setView('menu')
           }}
