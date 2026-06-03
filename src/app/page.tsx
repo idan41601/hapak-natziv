@@ -5,8 +5,9 @@ import { supabase } from '@/lib/supabase'
 import TripTab from '@/components/TripTab'
 import OperatorTab from '@/components/OperatorTab'
 import AdminTab from '@/components/AdminTab'
+import ScheduleTab from '@/components/ScheduleTab'
 
-type Tab = 'trip' | 'operator' | 'admin'
+type Tab = 'trip' | 'operator' | 'schedule' | 'admin'
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>('trip')
@@ -76,6 +77,7 @@ export default function Home() {
           />
         )}
         {tab === 'operator' && <OperatorTab />}
+        {tab === 'schedule' && <ScheduleTab />}
         {tab === 'admin' && <AdminTab />}
       </div>
 
@@ -90,6 +92,7 @@ export default function Home() {
         {[
           { id: 'trip', icon: '🚗', label: 'נסיעה' },
           { id: 'operator', icon: '📡', label: 'מפעיל' },
+          { id: 'schedule', icon: '📅', label: 'שבצ"ק' },
           { id: 'admin', icon: '🔒', label: 'אדמין' },
         ].map(item => (
           <button
