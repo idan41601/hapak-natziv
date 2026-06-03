@@ -19,6 +19,12 @@ interface ScheduleRow {
 
 const ADMIN_PASSWORD = 'chapak2026'
 
+function formatDate(d: string) {
+  if (!d) return ''
+  const date = new Date(d)
+  return `${date.getDate()}/${date.getMonth() + 1}`
+}
+
 const EMPTY_ROW = {
   week_start: '',
   week_end: '',
@@ -123,7 +129,7 @@ export default function ScheduleTab() {
   function exportExcel() {
     const header = ['תאריך', ...COLS.map(c => c.label)]
     const data = rows.map(r => [
-      `${r.week_start} — ${r.week_end}`,
+      `${formatDate(r.week_start)} — ${formatDate(r.week_end)}`,
       r.commander, r.driver, r.security, r.support, r.tech, r.standby
     ])
     const csv = [header, ...data].map(row =>
@@ -143,7 +149,7 @@ export default function ScheduleTab() {
   function exportPDF() {
     const rowsHtml = rows.map(r => `
       <tr>
-        <td>${r.week_start}<br><small>עד ${r.week_end}</small></td>
+        <td>${formatDate(r.week_start)}<br><small>עד ${formatDate(r.week_end)}</small></td>
         <td>${r.commander ?? ''}</td>
         <td>${r.driver ?? ''}</td>
         <td>${r.security ?? ''}</td>
@@ -299,7 +305,7 @@ export default function ScheduleTab() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ background: 'var(--red)', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
-                  {row.week_start} — {row.week_end}
+                  {formatDate(row.week_start)} — {formatDate(row.week_end)}
                 </div>
                 {isAdmin && (
                   <div style={{ display: 'flex', gap: 6 }}>
