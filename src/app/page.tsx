@@ -17,7 +17,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [showPushBanner, setShowPushBanner] = useState(false)
   const [pushName, setPushName] = useState('')
-  const { permission, subscribed, subscribe } = usePushNotifications()
+  const { status, subscribe } = usePushNotifications()
 
   useEffect(() => {
     supabase.from('trips').select('*').eq('status', 'active').single()
@@ -27,12 +27,11 @@ export default function Home() {
       })
   }, [])
 
-  // הצג בנר הרשמה אם לא נרשם עדיין
   useEffect(() => {
-    if (!loading && !subscribed && permission === 'default') {
+    if (!loading && (status === 'default' || status === 'needs-pwa')) {
       setTimeout(() => setShowPushBanner(true), 2000)
     }
-  }, [loading, subscribed, permission])
+  }, [loading, status])
 
   async function handleSubscribe() {
     const success = await subscribe(pushName || 'משתמש')
@@ -78,30 +77,40 @@ export default function Home() {
 
       {/* בנר הרשמה להתראות */}
       {showPushBanner && (
-        <div style={{
-          background: 'var(--amber-bg)', borderBottom: '1px solid var(--amber-border)',
-          padding: '12px 14px', flexShrink: 0
-        }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>🔔 הפעל התראות</div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
-            קבל עדכונים על שבצ&quot;ק חדש ועדכונים מהמפקד
-          </div>
-          <input
-            value={pushName}
-            onChange={e => setPushName(e.target.value)}
-            placeholder="מה השם שלך? (לדוגמה: משה נהג)"
-            style={{ background: 'var(--bg)', border: '1px solid var(--border2)', borderRadius: 8, padding: '9px 12px', fontSize: 13, width: '100%', direction: 'rtl', marginBottom: 8 }}
-          />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleSubscribe}
-              style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-              ✓ הפעל התראות
-            </button>
-            <button onClick={() => setShowPushBanner(false)}
-              style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--muted)', borderRadius: 8, padding: '9px 12px', fontSize: 12, cursor: 'pointer' }}>
-              אחר כך
-            </button>
-          </div>
+        <div style={{ background: 'var(--amber-bg)', borderBottom: '1px solid var(--amber-border)', padding: '12px 14px', flexShrink: 0 }}>
+          {status === 'needs-pwa' ? (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>🔔 הפעל התראות על אייפון</div>
+              <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7, marginBottom: 10 }}>
+                כדי לקבל התראות על אייפון:<br/>
+                1. לחץ על <strong>⬆️ שתף</strong> בתחתית Safari<br/>
+                2. בחר <strong>"הוסף למסך הבית"</strong><br/>
+                3. פתח את האפליקציה מהאייקון החדש
+              </div>
+              <button onClick={() => setShowPushBanner(false)}
+                style={{ width: '100%', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--muted)', borderRadius: 8, padding: '9px 0', fontSize: 12, cursor: 'pointer' }}>
+                הבנתי
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>🔔 הפעל התראות</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>קבל עדכונים על שבצ&quot;ק חדש ועדכונים מהמפקד</div>
+              <input value={pushName} onChange={e => setPushName(e.target.value)}
+                placeholder="מה השם שלך? (לדוגמה: משה נהג)"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border2)', borderRadius: 8, padding: '9px 12px', fontSize: 13, width: '100%', direction: 'rtl', marginBottom: 8 }} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={handleSubscribe}
+                  style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                  ✓ הפעל התראות
+                </button>
+                <button onClick={() => setShowPushBanner(false)}
+                  style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--muted)', borderRadius: 8, padding: '9px 12px', fontSize: 12, cursor: 'pointer' }}>
+                  אחר כך
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
