@@ -11,9 +11,12 @@ interface SopStep { id: string; sop_type: string; title: string; description: st
 interface SopType { id: string; name: string }
 interface Trip { id: string; driver_name: string; start_km: number; end_km: number | null; start_time: string; end_time: string | null; notes: string | null; status: string }
 interface VehicleStat { current_km: number; next_service_km: number }
+interface NotifTemplate { id: string; title: string; body: string; order_index: number }
+interface NotifLog { id: string; title: string; body: string; sent_to: string; sent_count: number; created_at: string }
+interface PushSub { id: string; endpoint: string; user_label: string; created_at: string }
 interface Props { onTripClosed?: () => void }
 
-type AdminTab = 'drivers' | 'safety' | 'sop' | 'journal' | 'vehicle' | 'stats'
+type AdminTab = 'drivers' | 'safety' | 'sop' | 'journal' | 'vehicle' | 'stats' | 'notifications'
 
 export default function AdminTab({ onTripClosed }: Props = {}) {
   const [authed, setAuthed] = useState(false)
@@ -51,11 +54,27 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
   // driver history
   const [historyDriver, setHistoryDriver] = useState<Driver | null>(null)
   const [historyTrips, setHistoryTrips] = useState<Trip[]>([])
+  // notifications
+  const [notifTemplates, setNotifTemplates] = useState<NotifTemplate[]>([])
+  const [notifLogs, setNotifLogs] = useState<NotifLog[]>([])
+  const [pushSubs, setPushSubs] = useState<PushSub[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  const [isCustomNotif, setIsCustomNotif] = useState(false)
+  const [customNotifTitle, setCustomNotifTitle] = useState('')
+  const [customNotifBody, setCustomNotifBody] = useState('')
+  const [targetAll, setTargetAll] = useState(true)
+  const [selectedSubs, setSelectedSubs] = useState<Set<string>>(new Set())
+  const [editingTemplate, setEditingTemplate] = useState<NotifTemplate | null>(null)
+  const [showAddTemplate, setShowAddTemplate] = useState(false)
+  const [newTemplate, setNewTemplate] = useState({ title: '', body: '' })
+  const [sending, setSending] = useState(false)
+  const [sendResult, setSendResult] = useState<{ sent: number } | null>(null)
+  const [showNotifLog, setShowNotifLog] = useState(false)
 
   useEffect(() => { if (authed) loadAll() }, [authed, tab, sopType])
 
   const loadAll = useCallback(async () => {
-    const [d, s, sop, t, v, all, st] = await Promise.all([
+    const [d, s, sop, t, v, all, st, nt, nl, ps] = await Promise.all([
       supabase.from('drivers').select('*').order('name'),
       supabase.from('safety_items').select('*').order('order_index'),
       supabase.from('sop_steps').select('*').eq('sop_type', sopType).order('order_index'),
@@ -63,6 +82,9 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
       supabase.from('vehicle_stats').select('*').single(),
       supabase.from('trips').select('*').order('start_time', { ascending: false }),
       supabase.from('sop_types').select('*'),
+      supabase.from('notification_templates').select('*').order('order_index'),
+      supabase.from('notifications_log').select('*').order('created_at', { ascending: false }).limit(20),
+      supabase.from('push_subscriptions').select('*').order('created_at', { ascending: false }),
     ])
     if (d.data) setDrivers(d.data)
     if (s.data) setSafetyItems(s.data)
@@ -71,6 +93,9 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
     if (v.data) setVehicleStat(v.data)
     if (all.data) setAllTrips(all.data)
     if (st.data) setSopTypes(st.data)
+    if (nt.data) setNotifTemplates(nt.data)
+    if (nl.data) setNotifLogs(nl.data)
+    if (ps.data) setPushSubs(ps.data)
   }, [sopType])
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
@@ -230,6 +255,51 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
     showToast('PDF נפתח להדפסה ✓')
   }
 
+  // פונקציות התראות
+  async function sendNotification() {
+    const title = isCustomNotif ? customNotifTitle : notifTemplates.find(t => t.id === selectedTemplate)?.title
+    const body = isCustomNotif ? customNotifBody : notifTemplates.find(t => t.id === selectedTemplate)?.body
+    if (!title || !body) { showToast('בחר הודעה'); return }
+    setSending(true); setSendResult(null)
+    const targetEndpoints = targetAll ? [] : pushSubs.filter(s => selectedSubs.has(s.id)).map(s => s.endpoint)
+    try {
+      const res = await fetch('/api/push-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body, targetEndpoints }),
+      })
+      const data = await res.json()
+      setSendResult({ sent: data.sent || 0 })
+      loadAll(); showToast(`נשלח ל-${data.sent} מכשירים ✓`)
+    } catch { showToast('שגיאה בשליחה') }
+    setSending(false)
+  }
+
+  async function saveTemplate() {
+    if (!editingTemplate) return
+    await supabase.from('notification_templates').update({ title: editingTemplate.title, body: editingTemplate.body }).eq('id', editingTemplate.id)
+    setEditingTemplate(null); loadAll(); showToast('תבנית עודכנה ✓')
+  }
+
+  async function addTemplate() {
+    if (!newTemplate.title || !newTemplate.body) return
+    const max = Math.max(...notifTemplates.map(t => t.order_index), 0)
+    await supabase.from('notification_templates').insert({ ...newTemplate, order_index: max + 1 })
+    setNewTemplate({ title: '', body: '' }); setShowAddTemplate(false); loadAll(); showToast('תבנית נוספה ✓')
+  }
+
+  async function deleteTemplate(id: string) {
+    if (!confirm('למחוק תבנית זו?')) return
+    await supabase.from('notification_templates').delete().eq('id', id)
+    loadAll(); showToast('נמחק')
+  }
+
+  async function deletePushSub(id: string) {
+    if (!confirm('למחוק מנוי זה?')) return
+    await supabase.from('push_subscriptions').delete().eq('id', id)
+    loadAll(); showToast('מנוי נמחק')
+  }
+
   // סטטיסטיקות
   function calcStats(tripList: Trip[]) {
     const done = tripList.filter(t => t.status === 'completed' && t.end_km)
@@ -334,7 +404,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
 
       {/* TABS */}
       <div style={{ display: 'flex', gap: 5, marginBottom: 14, overflowX: 'auto', scrollbarWidth: 'none' }}>
-        {[['drivers', '👤', 'נהגים'], ['safety', '✅', 'בטיחות'], ['sop', '📋', 'סד"פים'], ['journal', '📒', 'יומן'], ['stats', '📊', 'סטטיסטיקות'], ['vehicle', '🚗', 'רכב']].map(([val, icon, label]) => (
+        {[['drivers', '👤', 'נהגים'], ['safety', '✅', 'בטיחות'], ['sop', '📋', 'סד"פים'], ['journal', '📒', 'יומן'], ['stats', '📊', 'סטטיסטיקות'], ['notifications', '🔔', 'התראות'], ['vehicle', '🚗', 'רכב']].map(([val, icon, label]) => (
           <button key={val} onClick={() => setTab(val as AdminTab)}
             style={{ flexShrink: 0, background: tab === val ? 'var(--red)' : 'var(--bg)', border: `1px solid ${tab === val ? 'var(--red)' : 'var(--border)'}`, color: tab === val ? '#fff' : 'var(--muted)', borderRadius: 8, padding: '7px 12px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
             {icon} {label}
@@ -648,6 +718,171 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
           </div>
         )
       })()}
+
+      {/* NOTIFICATIONS */}
+      {tab === 'notifications' && (
+        <div>
+          {/* מנויים */}
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+              📱 מנויים פעילים
+              <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--muted)', marginRight: 8 }}>{pushSubs.length} מכשירים</span>
+            </div>
+            {pushSubs.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>אין מנויים עדיין</div>
+            ) : pushSubs.map(sub => (
+              <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                {!targetAll && (
+                  <input type="checkbox" checked={selectedSubs.has(sub.id)}
+                    onChange={e => { const n = new Set(selectedSubs); e.target.checked ? n.add(sub.id) : n.delete(sub.id); setSelectedSubs(n) }}
+                    style={{ width: 16, height: 16, flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, fontSize: 13 }}>{sub.user_label}</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)' }}>{new Date(sub.created_at).toLocaleDateString('he-IL')}</div>
+                <button onClick={() => deletePushSub(sub.id)}
+                  style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer' }}>🗑</button>
+              </div>
+            ))}
+          </div>
+
+          {/* נמענים */}
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>👥 למי לשלוח</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { setTargetAll(true); setSelectedSubs(new Set()) }}
+                style={{ flex: 1, background: targetAll ? 'var(--red)' : 'var(--bg3)', border: `1px solid ${targetAll ? 'var(--red)' : 'var(--border)'}`, color: targetAll ? '#fff' : 'var(--muted)', borderRadius: 8, padding: '9px 0', fontSize: 12, cursor: 'pointer' }}>
+                🌐 לכולם ({pushSubs.length})
+              </button>
+              <button onClick={() => setTargetAll(false)}
+                style={{ flex: 1, background: !targetAll ? 'var(--red)' : 'var(--bg3)', border: `1px solid ${!targetAll ? 'var(--red)' : 'var(--border)'}`, color: !targetAll ? '#fff' : 'var(--muted)', borderRadius: 8, padding: '9px 0', fontSize: 12, cursor: 'pointer' }}>
+                ✋ נבחרים {!targetAll && selectedSubs.size > 0 ? `(${selectedSubs.size})` : ''}
+              </button>
+            </div>
+          </div>
+
+          {/* תבניות הודעות */}
+          <div style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>💬 תוכן ההתראה</div>
+              <button onClick={() => setShowAddTemplate(!showAddTemplate)}
+                style={{ background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 7, padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}>+ תבנית</button>
+            </div>
+
+            {/* טאבים */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+              <button onClick={() => setIsCustomNotif(false)}
+                style={{ flex: 1, background: !isCustomNotif ? 'var(--red)' : 'var(--bg3)', border: `1px solid ${!isCustomNotif ? 'var(--red)' : 'var(--border)'}`, color: !isCustomNotif ? '#fff' : 'var(--muted)', borderRadius: 7, padding: '7px 0', fontSize: 12, cursor: 'pointer' }}>
+                תבניות
+              </button>
+              <button onClick={() => setIsCustomNotif(true)}
+                style={{ flex: 1, background: isCustomNotif ? 'var(--red)' : 'var(--bg3)', border: `1px solid ${isCustomNotif ? 'var(--red)' : 'var(--border)'}`, color: isCustomNotif ? '#fff' : 'var(--muted)', borderRadius: 7, padding: '7px 0', fontSize: 12, cursor: 'pointer' }}>
+                חופשי
+              </button>
+            </div>
+
+            {/* הוספת תבנית */}
+            {showAddTemplate && (
+              <div style={{ background: 'var(--bg2)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
+                <input value={newTemplate.title} onChange={e => setNewTemplate(p => ({ ...p, title: e.target.value }))}
+                  placeholder="כותרת (לדוגמה: 🚨 כינוס)" style={{ ...inp(), marginBottom: 8 }} />
+                <textarea value={newTemplate.body} onChange={e => setNewTemplate(p => ({ ...p, body: e.target.value }))}
+                  placeholder="תוכן ההתראה..." rows={2} style={{ ...inp({ resize: 'none' }), marginBottom: 8 }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={addTemplate} style={{ flex: 1, background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 0', fontSize: 12, cursor: 'pointer' }}>הוסף</button>
+                  <button onClick={() => setShowAddTemplate(false)} style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 7, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>ביטול</button>
+                </div>
+              </div>
+            )}
+
+            {!isCustomNotif ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {notifTemplates.map(t => (
+                  <div key={t.id}>
+                    {editingTemplate?.id === t.id ? (
+                      <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: 8, padding: 10 }}>
+                        <input value={editingTemplate.title} onChange={e => setEditingTemplate(p => p ? { ...p, title: e.target.value } : p)}
+                          style={{ ...inp(), marginBottom: 8 }} />
+                        <textarea value={editingTemplate.body} onChange={e => setEditingTemplate(p => p ? { ...p, body: e.target.value } : p)}
+                          rows={2} style={{ ...inp({ resize: 'none' }), marginBottom: 8 }} />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={saveTemplate} style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 0', fontSize: 12, cursor: 'pointer' }}>שמור</button>
+                          <button onClick={() => setEditingTemplate(null)} style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 7, padding: '7px 10px', fontSize: 12, cursor: 'pointer' }}>ביטול</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div onClick={() => !editingTemplate && setSelectedTemplate(t.id)}
+                        style={{ padding: '10px 12px', borderRadius: 8, border: `1.5px solid ${selectedTemplate === t.id ? 'var(--red)' : 'var(--border)'}`, background: selectedTemplate === t.id ? 'var(--red-bg)' : 'var(--bg2)', cursor: 'pointer' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: selectedTemplate === t.id ? 'var(--red)' : 'var(--text)' }}>{t.title}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{t.body}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 4, flexShrink: 0, marginRight: 8 }}>
+                            <button onClick={e => { e.stopPropagation(); setEditingTemplate(t) }}
+                              style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 5, padding: '3px 6px', fontSize: 11, cursor: 'pointer' }}>✏️</button>
+                            <button onClick={e => { e.stopPropagation(); deleteTemplate(t.id) }}
+                              style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: 5, padding: '3px 6px', fontSize: 11, cursor: 'pointer' }}>🗑</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div>
+                <input value={customNotifTitle} onChange={e => setCustomNotifTitle(e.target.value)}
+                  placeholder="כותרת" style={{ ...inp(), marginBottom: 8 }} />
+                <textarea value={customNotifBody} onChange={e => setCustomNotifBody(e.target.value)}
+                  placeholder="תוכן ההתראה..." rows={3} style={{ ...inp({ resize: 'none' }) }} />
+              </div>
+            )}
+          </div>
+
+          {/* תצוגה מקדימה */}
+          {(() => {
+            const t = isCustomNotif ? customNotifTitle : notifTemplates.find(t => t.id === selectedTemplate)?.title
+            const b = isCustomNotif ? customNotifBody : notifTemplates.find(t => t.id === selectedTemplate)?.body
+            return t && b ? (
+              <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>תצוגה מקדימה</div>
+                <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{t}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{b}</div>
+                </div>
+              </div>
+            ) : null
+          })()}
+
+          {/* כפתור שליחה */}
+          <button onClick={sendNotification} disabled={sending}
+            style={{ width: '100%', background: sending ? 'var(--bg3)' : 'var(--red)', color: sending ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, padding: '14px 0', fontSize: 14, fontWeight: 600, cursor: sending ? 'not-allowed' : 'pointer', marginBottom: 10 }}>
+            {sending ? '⏳ שולח...' : `🔔 שלח התראה${targetAll ? ` לכולם (${pushSubs.length})` : selectedSubs.size > 0 ? ` ל-${selectedSubs.size} נבחרים` : ''}`}
+          </button>
+
+          {sendResult && (
+            <div style={{ background: 'var(--green-bg)', border: '1px solid var(--green-border)', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>✓ נשלח ל-{sendResult.sent} מכשירים</div>
+            </div>
+          )}
+
+          {/* יומן */}
+          <button onClick={() => setShowNotifLog(!showNotifLog)}
+            style={{ width: '100%', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--muted)', borderRadius: 10, padding: '11px 0', fontSize: 12, cursor: 'pointer', marginBottom: showNotifLog ? 10 : 0 }}>
+            {showNotifLog ? '▲' : '▼'} יומן התראות ({notifLogs.length})
+          </button>
+          {showNotifLog && notifLogs.map(log => (
+            <div key={log.id} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{log.title}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>{new Date(log.created_at).toLocaleDateString('he-IL')}</div>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>{log.body}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>נשלח ל: {log.sent_to} · {log.sent_count} מכשירים</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* VEHICLE */}
       {tab === 'vehicle' && (
