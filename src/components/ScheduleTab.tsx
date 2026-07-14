@@ -61,6 +61,12 @@ export default function ScheduleTab() {
   const [showAddRow, setShowAddRow] = useState(false)
   const [newRow, setNewRow] = useState(EMPTY_ROW)
   const [toast, setToast] = useState('')
+  // PDF upload
+  const [showPdfUpload, setShowPdfUpload] = useState(false)
+  const [pdfParsing, setPdfParsing] = useState(false)
+  const [pdfPreview, setPdfPreview] = useState<any[] | null>(null)
+  const [pdfMonthLabel, setPdfMonthLabel] = useState('')
+  const [pdfError, setPdfError] = useState('')
 
   useEffect(() => { loadMonths() }, [])
   useEffect(() => { if (currentMonth) loadRows(currentMonth) }, [currentMonth])
@@ -123,6 +129,35 @@ export default function ScheduleTab() {
     await supabase.from('schedules').delete().eq('month_label', month)
     loadMonths()
     showToast('חודש נמחק')
+  }
+
+  async function handlePdfUpload(file: File) {
+    if (!pdfMonthLabel) { setPdfError('יש להזין שם חודש לפני ההעלאה'); return }
+    setPdfParsing(true); setPdfError(''); setPdfPreview(null)
+    try {
+      const fd = new FormData()
+      fd.append('pdf', file)
+      const res = await fetch('/api/parse-schedule', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (data.error) { setPdfError(data.error); return }
+      setPdfPreview(data.rows)
+    } catch (e: any) {
+      setPdfError('שגיאה בניתוח הקובץ')
+    } finally {
+      setPdfParsing(false)
+    }
+  }
+
+  async function confirmPdfImport() {
+    if (!pdfPreview || !pdfMonthLabel) return
+    for (const row of pdfPreview) {
+      await supabase.from('schedules').insert({ ...row, month_label: pdfMonthLabel })
+    }
+    setMonths(prev => Array.from(new Set([pdfMonthLabel, ...prev])))
+    setCurrentMonth(pdfMonthLabel)
+    setPdfPreview(null); setShowPdfUpload(false); setPdfMonthLabel('')
+    loadRows(pdfMonthLabel)
+    showToast(`✓ יובאו ${pdfPreview.length} שורות`)
   }
 
   // ייצוא Excel
@@ -235,10 +270,70 @@ export default function ScheduleTab() {
           {months.length === 0 && <option value="">אין חודשים עדיין</option>}
         </select>
         {isAdmin && (
-          <button onClick={() => setShowAddMonth(true)}
-            style={{ background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 14px', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}>+ חודש</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => setShowAddMonth(true)}
+              style={{ background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 14px', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}>+ חודש</button>
+            <button onClick={() => setShowPdfUpload(!showPdfUpload)}
+              style={{ background: 'transparent', border: '1px solid var(--red)', color: 'var(--red)', borderRadius: 8, padding: '9px 14px', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}>📄 PDF</button>
+          </div>
         )}
       </div>
+
+      {/* העלאת PDF */}
+      {showPdfUpload && isAdmin && (
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>📄 ייבוא שבצ"ק מ-PDF</div>
+          <label style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 5 }}>שם החודש (לדוגמה: יולי-אוגוסט 2026)</label>
+          <input value={pdfMonthLabel} onChange={e => setPdfMonthLabel(e.target.value)}
+            placeholder='יולי-אוגוסט 2026' style={{ ...inp(), marginBottom: 10 }} />
+          {!pdfPreview && !pdfParsing && (
+            <label style={{ display: 'block', background: 'var(--bg2)', border: '2px dashed var(--border2)', borderRadius: 8, padding: '20px 0', textAlign: 'center', cursor: 'pointer' }}>
+              <div style={{ fontSize: 24, marginBottom: 6 }}>📄</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>לחץ לבחירת קובץ PDF</div>
+              <input type="file" accept=".pdf" style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) handlePdfUpload(f) }} />
+            </label>
+          )}
+          {pdfParsing && (
+            <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted)', fontSize: 13 }}>
+              ⏳ מנתח את הקובץ...
+            </div>
+          )}
+          {pdfError && (
+            <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: 8, padding: 10, fontSize: 12, color: 'var(--red)', marginTop: 8 }}>
+              {pdfError}
+            </div>
+          )}
+          {pdfPreview && (
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600, marginBottom: 8 }}>✓ זוהו {pdfPreview.length} שורות — בדוק ואשר</div>
+              {pdfPreview.map((row, i) => (
+                <div key={i} style={{ background: 'var(--bg2)', borderRadius: 8, padding: '8px 10px', marginBottom: 6, fontSize: 12 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 3 }}>{formatDate(row.week_start)} — {formatDate(row.week_end)}</div>
+                  <div style={{ color: 'var(--muted)' }}>מפקד: {row.commander} · נהג: {row.driver}</div>
+                  <div style={{ color: 'var(--muted)' }}>ביטחון: {row.security}</div>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button onClick={confirmPdfImport}
+                  style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                  ✓ אשר וייבא
+                </button>
+                <button onClick={() => { setPdfPreview(null); setPdfError('') }}
+                  style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 8, padding: '10px 12px', fontSize: 12, cursor: 'pointer' }}>
+                  בטל
+                </button>
+              </div>
+            </div>
+          )}
+          {!pdfPreview && (
+            <button onClick={() => { setShowPdfUpload(false); setPdfError(''); setPdfMonthLabel('') }}
+              style={{ width: '100%', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--muted)', borderRadius: 8, padding: '9px 0', fontSize: 12, cursor: 'pointer', marginTop: 8 }}>
+              סגור
+            </button>
+          )}
+        </div>
+      )}
 
       {/* הוספת חודש */}
       {showAddMonth && (
