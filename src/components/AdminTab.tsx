@@ -14,9 +14,10 @@ interface VehicleStat { current_km: number; next_service_km: number }
 interface NotifTemplate { id: string; title: string; body: string; order_index: number }
 interface NotifLog { id: string; title: string; body: string; sent_to: string; sent_count: number; created_at: string }
 interface PushSub { id: string; endpoint: string; user_label: string; created_at: string }
+interface ReportEmail { id: string; email: string; name: string; active: boolean }
 interface Props { onTripClosed?: () => void }
 
-type AdminTab = 'drivers' | 'safety' | 'sop' | 'journal' | 'vehicle' | 'stats' | 'notifications'
+type AdminTab = 'drivers' | 'safety' | 'sop' | 'journal' | 'vehicle' | 'stats' | 'notifications' | 'reports'
 
 export default function AdminTab({ onTripClosed }: Props = {}) {
   const [authed, setAuthed] = useState(false)
@@ -70,6 +71,15 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
   const [sending, setSending] = useState(false)
   const [sendResult, setSendResult] = useState<{ sent: number } | null>(null)
   const [showNotifLog, setShowNotifLog] = useState(false)
+  // reports
+  const [reportEmails, setReportEmails] = useState<ReportEmail[]>([])
+  const [newReportEmail, setNewReportEmail] = useState({ email: '', name: '' })
+  const [showAddEmail, setShowAddEmail] = useState(false)
+  const [reportSections, setReportSections] = useState<string[]>(['trips', 'schedule', 'notifications'])
+  const [reportDateFrom, setReportDateFrom] = useState('')
+  const [reportDateTo, setReportDateTo] = useState('')
+  const [reportSending, setReportSending] = useState(false)
+  const [reportResult, setReportResult] = useState<string | null>(null)
 
   useEffect(() => { if (authed) loadAll() }, [authed, tab, sopType])
 
@@ -96,6 +106,8 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
     if (nt.data) setNotifTemplates(nt.data)
     if (nl.data) setNotifLogs(nl.data)
     if (ps.data) setPushSubs(ps.data)
+    const re = await supabase.from('report_emails').select('*').order('created_at')
+    if (re.data) setReportEmails(re.data)
   }, [sopType])
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
@@ -255,6 +267,40 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
     showToast('PDF נפתח להדפסה ✓')
   }
 
+  async function sendReport() {
+    setReportSending(true); setReportResult(null)
+    try {
+      const res = await fetch('/api/weekly-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sections: reportSections,
+          dateFrom: reportDateFrom || undefined,
+          dateTo: reportDateTo || undefined,
+        })
+      })
+      const data = await res.json()
+      if (data.error) { setReportResult(`שגיאה: ${data.error}`); showToast('שגיאה בשליחה') }
+      else { setReportResult(`✓ נשלח ל-${data.sent} כתובות`); showToast(`דוח נשלח ✓`) }
+    } catch { setReportResult('שגיאה בשליחה') }
+    setReportSending(false)
+  }
+
+  async function addReportEmail() {
+    if (!newReportEmail.email) return
+    await supabase.from('report_emails').insert(newReportEmail)
+    setNewReportEmail({ email: '', name: '' }); setShowAddEmail(false); loadAll(); showToast('מייל נוסף ✓')
+  }
+
+  async function deleteReportEmail(id: string) {
+    await supabase.from('report_emails').delete().eq('id', id)
+    loadAll(); showToast('נמחק')
+  }
+
+  function toggleSection(s: string) {
+    setReportSections(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  }
+
   // פונקציות התראות
   async function sendNotification() {
     const title = isCustomNotif ? customNotifTitle : notifTemplates.find(t => t.id === selectedTemplate)?.title
@@ -404,7 +450,7 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
 
       {/* TABS */}
       <div style={{ display: 'flex', gap: 5, marginBottom: 14, overflowX: 'auto', scrollbarWidth: 'none' }}>
-        {[['drivers', '👤', 'נהגים'], ['safety', '✅', 'בטיחות'], ['sop', '📋', 'סד"פים'], ['journal', '📒', 'יומן'], ['stats', '📊', 'סטטיסטיקות'], ['notifications', '🔔', 'התראות'], ['vehicle', '🚗', 'רכב']].map(([val, icon, label]) => (
+        {[['drivers', '👤', 'נהגים'], ['safety', '✅', 'בטיחות'], ['sop', '📋', 'סד"פים'], ['journal', '📒', 'יומן'], ['stats', '📊', 'סטטיסטיקות'], ['notifications', '🔔', 'התראות'], ['reports', '📧', 'דוחות'], ['vehicle', '🚗', 'רכב']].map(([val, icon, label]) => (
           <button key={val} onClick={() => setTab(val as AdminTab)}
             style={{ flexShrink: 0, background: tab === val ? 'var(--red)' : 'var(--bg)', border: `1px solid ${tab === val ? 'var(--red)' : 'var(--border)'}`, color: tab === val ? '#fff' : 'var(--muted)', borderRadius: 8, padding: '7px 12px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
             {icon} {label}
@@ -884,6 +930,101 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
         </div>
       )}
 
+      {/* REPORTS */}
+      {tab === 'reports' && (
+        <div>
+          {/* רשימת מיילים */}
+          <div style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>📧 רשימת נמענים</div>
+              <button onClick={() => setShowAddEmail(!showAddEmail)}
+                style={{ background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 7, padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}>+ הוסף</button>
+            </div>
+            {showAddEmail && (
+              <div style={{ background: 'var(--bg2)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
+                <input value={newReportEmail.name} onChange={e => setNewReportEmail(p => ({ ...p, name: e.target.value }))}
+                  placeholder="שם (אופציונלי)" style={{ ...inp(), marginBottom: 6 }} />
+                <input value={newReportEmail.email} onChange={e => setNewReportEmail(p => ({ ...p, email: e.target.value }))}
+                  placeholder="כתובת מייל" type="email" style={{ ...inp({ direction: 'ltr' }), marginBottom: 8 }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={addReportEmail} style={{ flex: 1, background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 0', fontSize: 12, cursor: 'pointer' }}>הוסף</button>
+                  <button onClick={() => setShowAddEmail(false)} style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: 7, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>ביטול</button>
+                </div>
+              </div>
+            )}
+            {reportEmails.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', padding: '10px 0' }}>אין נמענים עדיין</div>
+            ) : reportEmails.map(e => (
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13 }}>{e.name || e.email}</div>
+                  {e.name && <div style={{ fontSize: 11, color: 'var(--muted)' }}>{e.email}</div>}
+                </div>
+                <button onClick={() => deleteReportEmail(e.id)}
+                  style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer' }}>🗑</button>
+              </div>
+            ))}
+          </div>
+
+          {/* בחירת תוכן */}
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>📋 תוכן הדוח</div>
+            {[
+              { id: 'trips', label: '🚗 נסיעות השבוע', desc: 'כמות, ק"מ, נהגים' },
+              { id: 'schedule', label: '📅 שבצ"ק השבוע הבא', desc: 'מפקד, נהג, כוננות' },
+              { id: 'notifications', label: '🔔 התראות שנשלחו', desc: 'כל ההתראות בתקופה' },
+            ].map(s => (
+              <div key={s.id} onClick={() => toggleSection(s.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: `1.5px solid ${reportSections.includes(s.id) ? 'var(--red)' : 'var(--border)'}`, background: reportSections.includes(s.id) ? 'var(--red-bg)' : 'var(--bg2)', cursor: 'pointer', marginBottom: 8 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${reportSections.includes(s.id) ? 'var(--red)' : 'var(--border2)'}`, background: reportSections.includes(s.id) ? 'var(--red)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {reportSections.includes(s.id) && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{s.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{s.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* בחירת תקופה */}
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>📆 תקופה</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>ריק = שבוע אחרון אוטומטית</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>מתאריך</div>
+                <input type="date" value={reportDateFrom} onChange={e => setReportDateFrom(e.target.value)}
+                  style={{ ...inp({ direction: 'ltr' }) }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>עד תאריך</div>
+                <input type="date" value={reportDateTo} onChange={e => setReportDateTo(e.target.value)}
+                  style={{ ...inp({ direction: 'ltr' }) }} />
+              </div>
+            </div>
+          </div>
+
+          {/* שליחה */}
+          <button onClick={sendReport} disabled={reportSending || reportEmails.length === 0 || reportSections.length === 0}
+            style={{ width: '100%', background: reportSending ? 'var(--bg3)' : 'var(--red)', color: reportSending ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, padding: '14px 0', fontSize: 14, fontWeight: 600, cursor: reportSending ? 'not-allowed' : 'pointer', marginBottom: 10 }}>
+            {reportSending ? '⏳ שולח...' : `📧 שלח דוח ל-${reportEmails.length} נמענים`}
+          </button>
+
+          {reportResult && (
+            <div style={{ background: reportResult.startsWith('שגיאה') ? 'var(--red-bg)' : 'var(--green-bg)', border: `1px solid ${reportResult.startsWith('שגיאה') ? 'var(--red-border)' : 'var(--green-border)'}`, borderRadius: 10, padding: 12, textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: reportResult.startsWith('שגיאה') ? 'var(--red)' : 'var(--green)' }}>{reportResult}</div>
+            </div>
+          )}
+
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: 12, marginTop: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.7 }}>
+              🕐 <strong>שליחה אוטומטית:</strong> כל יום ראשון בבוקר נשלח דוח אוטומטי עם נתוני השבוע שחלף לכל הנמענים ברשימה.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* VEHICLE */}
       {tab === 'vehicle' && (
         <div>
@@ -989,3 +1130,4 @@ export default function AdminTab({ onTripClosed }: Props = {}) {
     </div>
   )
 }
+                                                                              
