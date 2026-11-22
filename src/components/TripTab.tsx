@@ -23,6 +23,39 @@ interface Props {
   onTripEnd: () => void
 }
 
+function Avatar({ name, size = 42 }: { name: string; size?: number }) {
+  const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: size * 0.26,
+      background: 'linear-gradient(135deg, #2a1a1a 0%, #3d1515 50%, #2a1010 100%)',
+      border: '1px solid rgba(232,35,42,.2)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.33, fontWeight: 700, color: 'var(--red)',
+      flexShrink: 0,
+    }}>{initials}</div>
+  )
+}
+
+function SectionHeader({ title, onBack, sub }: { title: string; onBack?: () => void; sub?: string }) {
+  return (
+    <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid var(--line)', marginBottom: 0 }}>
+      {onBack && (
+        <button onClick={onBack} style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 11, fontWeight: 700, color: 'var(--red)',
+          letterSpacing: '.04em', marginBottom: 6, padding: 0,
+          display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          ← חזור
+        </button>
+      )}
+      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', letterSpacing: '-.01em' }}>{title}</div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{sub}</div>}
+    </div>
+  )
+}
+
 export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
   const [step, setStep] = useState<Step>(activeTrip ? 'active-trip' : 'home')
   const [drivers, setDrivers] = useState<Driver[]>([])
@@ -90,18 +123,32 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
     onTripEnd()
   }
 
-  const P = { padding: '0 16px 20px' }
-
   /* ─── HOME ─── */
   if (step === 'home') return (
     <div>
       {/* hero */}
-      <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
-        <img src="/chapak-hero.jpg" alt="חפ&quot;ק" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(17,19,24,.1) 0%, rgba(17,19,24,.85) 100%)' }} />
-        <div style={{ position: 'absolute', bottom: 18, right: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-.02em' }}>חפ&quot;ק כבאות והצלה</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', marginTop: 3 }}>מערכת ניהול רכב מבצעי</div>
+      <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
+        <img src="/chapak-hero.jpg" alt="חפ״ק" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(9,9,12,.2) 0%, rgba(9,9,12,.9) 100%)' }} />
+        <div style={{ position: 'absolute', bottom: 16, right: 16, left: 16 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: 'rgba(255,255,255,.45)', marginBottom: 4 }}>
+            חפ״ק כבאות והצלה · לפיד 10
+          </div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: '-.02em', lineHeight: 1.1 }}>
+            מערכת ניהול רכב מבצעי
+          </div>
+        </div>
+        {/* km badge */}
+        <div style={{
+          position: 'absolute', top: 14, left: 14,
+          background: 'rgba(9,9,12,.7)', backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255,255,255,.1)',
+          borderRadius: 10, padding: '6px 10px',
+        }}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,.45)', letterSpacing: '.05em' }}>מד ק״מ</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '-.01em', direction: 'ltr' }}>
+            {vehicleKm.toLocaleString()}
+          </div>
         </div>
       </div>
 
@@ -109,22 +156,25 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
         {activeTrip ? (
           <>
             <div style={{
-              background: 'rgba(244,162,97,.08)',
-              border: '1px solid var(--amber-border)',
-              borderRadius: 14, padding: '14px 16px', marginBottom: 12,
+              background: 'var(--amber-dim)',
+              border: '1px solid rgba(245,158,11,.25)',
+              borderRight: '3px solid var(--amber)',
+              borderRadius: 'var(--r)', padding: '14px 16px', marginBottom: 12,
             }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--amber)', marginBottom: 6 }}>⚠️ נסיעה פעילה קיימת</div>
-              <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 3 }}>
-                <strong>{activeTrip.driver_name}</strong> נמצא בנסיעה פעילה
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--amber)', letterSpacing: '.04em', marginBottom: 6 }}>
+                ⚠ נסיעה פעילה קיימת
               </div>
-              <div style={{ fontSize: 12, color: 'var(--muted)' }}>יש לסיים לפני פתיחת נסיעה חדשה</div>
+              <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>
+                <strong>{activeTrip.driver_name}</strong> נמצא בנסיעה
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text3)' }}>יש לסיים לפני פתיחת נסיעה חדשה</div>
             </div>
-            <button className="btn-primary" onClick={() => setStep('active-trip')}>
+            <button className="btn-red" onClick={() => setStep('active-trip')}>
               🔴 עבור לנסיעה הפעילה
             </button>
           </>
         ) : (
-          <button className="btn-primary" onClick={() => setStep('select-driver')}>
+          <button className="btn-red" onClick={() => setStep('select-driver')}>
             🚗 התחל נסיעה חדשה
           </button>
         )}
@@ -134,347 +184,317 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
 
   /* ─── SELECT DRIVER ─── */
   if (step === 'select-driver') return (
-    <div style={{ padding: '16px 16px 24px' }}>
-      <div className="label">בחר נהג מורשה</div>
-      {drivers.map(d => (
-        <div key={d.id}
-          onClick={() => { setSelectedDriver(d); setPinInput(''); setPinError(false); if (d.pin) setStep('pin-verify'); else setStep('select-purpose') }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 13,
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 14, padding: '13px 14px', marginBottom: 8, cursor: 'pointer',
-            transition: 'background .15s',
-          }}>
-          <div style={{
-            width: 42, height: 42, borderRadius: 11,
-            background: 'linear-gradient(135deg, #3a1a1a, #5c2a2a)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 700, color: 'var(--red)', flexShrink: 0,
-          }}>
-            {d.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
+    <div>
+      <SectionHeader title="בחר נהג מורשה" onBack={() => setStep('home')} sub={`${drivers.length} נהגים פעילים`} />
+      <div style={{ padding: '12px 16px 24px' }}>
+        {drivers.map(d => (
+          <div key={d.id}
+            onClick={() => { setSelectedDriver(d); setPinInput(''); setPinError(false); if (d.pin) setStep('pin-verify'); else setStep('select-purpose') }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 13,
+              background: 'var(--surface)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r)', padding: '13px 14px', marginBottom: 8, cursor: 'pointer',
+              transition: 'background .12s, border-color .12s',
+            }}>
+            <Avatar name={d.name} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{d.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{d.rank}</div>
+            </div>
+            <span style={{ color: 'var(--text3)', fontSize: 16 }}>‹</span>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{d.name}</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{d.rank}</div>
-          </div>
-          <span style={{ color: 'var(--dim)', fontSize: 18 }}>‹</span>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 
   /* ─── PIN VERIFY ─── */
   if (step === 'pin-verify') return (
-    <div style={{ padding: '16px 16px 24px' }}>
-      <div className="label">אימות זהות</div>
-      <div style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 16, padding: '28px 20px', textAlign: 'center',
-      }}>
+    <div>
+      <SectionHeader title="אימות זהות" onBack={() => setStep('select-driver')} />
+      <div style={{ padding: '24px 16px' }}>
         <div style={{
-          width: 60, height: 60, borderRadius: 15,
-          background: 'linear-gradient(135deg, #3a1a1a, #5c2a2a)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 20, fontWeight: 700, color: 'var(--red)', margin: '0 auto 14px',
+          background: 'var(--surface)', border: '1px solid var(--line)',
+          borderRadius: 'var(--r)', padding: '28px 20px', textAlign: 'center',
         }}>
-          {selectedDriver?.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
+          <Avatar name={selectedDriver?.name ?? ''} size={56} />
+          <div style={{ marginTop: 14, fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{selectedDriver?.name}</div>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 24 }}>{selectedDriver?.rank}</div>
+          <div className="field-label" style={{ textAlign: 'right' }}>קוד PIN אישי</div>
+          <input
+            type="password" inputMode="numeric" maxLength={4}
+            value={pinInput}
+            onChange={e => { setPinInput(e.target.value); setPinError(false) }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                if (pinInput === selectedDriver?.pin) { setPinError(false); setStep('select-purpose') }
+                else setPinError(true)
+              }
+            }}
+            placeholder="• • • •"
+            className="input"
+            style={{
+              fontSize: 28, textAlign: 'center', letterSpacing: 14, direction: 'ltr',
+              marginBottom: pinError ? 8 : 16,
+              borderColor: pinError ? 'var(--red)' : undefined,
+            }}
+            autoFocus
+          />
+          {pinError && <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 12 }}>קוד PIN שגוי — נסה שנית</div>}
+          <button className="btn-red"
+            onClick={() => { if (pinInput === selectedDriver?.pin) { setPinError(false); setStep('select-purpose') } else setPinError(true) }}>
+            ✓ אמת וכנס
+          </button>
         </div>
-        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>{selectedDriver?.name}</div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 24 }}>{selectedDriver?.rank}</div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>הכנס קוד PIN אישי</div>
-        <input
-          type="password"
-          inputMode="numeric"
-          maxLength={4}
-          value={pinInput}
-          onChange={e => { setPinInput(e.target.value); setPinError(false) }}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              if (pinInput === selectedDriver?.pin) { setPinError(false); setStep('select-purpose') }
-              else setPinError(true)
-            }
-          }}
-          placeholder="• • • •"
-          style={{
-            background: 'var(--bg3)',
-            border: `1.5px solid ${pinError ? 'var(--red)' : 'var(--border2)'}`,
-            borderRadius: 12, padding: '14px 0', width: '100%',
-            fontSize: 30, textAlign: 'center', letterSpacing: 14,
-            marginBottom: pinError ? 8 : 16, direction: 'ltr',
-            color: 'var(--text)', outline: 'none',
-            transition: 'border-color .15s',
-          }}
-          autoFocus
-        />
-        {pinError && <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 12 }}>קוד PIN שגוי, נסה שנית</div>}
-        <button className="btn-primary"
-          onClick={() => { if (pinInput === selectedDriver?.pin) { setPinError(false); setStep('select-purpose') } else setPinError(true) }}>
-          ✓ אמת וכנס
-        </button>
-        <button className="btn-ghost" style={{ marginTop: 8 }} onClick={() => setStep('select-driver')}>
-          חזור לבחירת נהג
-        </button>
       </div>
     </div>
   )
 
   /* ─── SELECT PURPOSE ─── */
   if (step === 'select-purpose') return (
-    <div style={{ padding: '16px 16px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <button onClick={() => setStep('select-driver')}
-          style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>
-          › חזור
-        </button>
-        <div className="label" style={{ marginBottom: 0 }}>מטרת הנסיעה</div>
-      </div>
+    <div>
+      <SectionHeader title="מטרת הנסיעה" onBack={() => setStep('select-driver')} />
 
-      {/* selected driver chip */}
+      {/* driver chip */}
       <div style={{
+        margin: '12px 16px 4px',
         display: 'flex', alignItems: 'center', gap: 10,
-        background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 12, padding: '10px 14px', marginBottom: 14,
+        background: 'var(--lift)', border: '1px solid var(--edge)',
+        borderRadius: 'var(--r2)', padding: '10px 12px',
       }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: 8,
-          background: 'linear-gradient(135deg, #3a1a1a, #5c2a2a)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 700, color: 'var(--red)',
-        }}>
-          {selectedDriver?.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
-        </div>
+        <Avatar name={selectedDriver?.name ?? ''} size={30} />
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{selectedDriver?.name}</div>
-          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{selectedDriver?.rank}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{selectedDriver?.name}</div>
+          <div style={{ fontSize: 10, color: 'var(--text3)' }}>{selectedDriver?.rank}</div>
         </div>
       </div>
 
-      {TRIP_PURPOSES.map(p => (
-        <div key={p.id}
-          onClick={() => { setSelectedPurpose(p); if (p.id === 'event') setStep('alert-escort'); else setStep('checklist') }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 14,
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 13, padding: '14px', marginBottom: 8, cursor: 'pointer',
-            transition: 'background .15s',
-          }}>
-          <span style={{ fontSize: 24 }}>{p.icon}</span>
-          <div style={{ fontSize: 14, fontWeight: 500, flex: 1, color: 'var(--text)' }}>{p.label}</div>
-          <span style={{ color: 'var(--dim)', fontSize: 18 }}>‹</span>
-        </div>
-      ))}
+      <div style={{ padding: '10px 16px 24px' }}>
+        {TRIP_PURPOSES.map(p => (
+          <div key={p.id}
+            onClick={() => { setSelectedPurpose(p); if (p.id === 'event') setStep('alert-escort'); else setStep('checklist') }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              background: 'var(--surface)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r)', padding: '14px', marginBottom: 8, cursor: 'pointer',
+            }}>
+            <span style={{ fontSize: 22, flexShrink: 0 }}>{p.icon}</span>
+            <div style={{ fontSize: 14, fontWeight: 500, flex: 1, color: 'var(--text)' }}>{p.label}</div>
+            <span style={{ color: 'var(--text3)', fontSize: 16 }}>‹</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 
   /* ─── ALERT ESCORT ─── */
   if (step === 'alert-escort') return (
-    <div style={{ padding: '16px 16px 24px' }}>
+    <div style={{ padding: '24px 16px' }}>
       <div style={{
-        background: 'rgba(230,57,70,.07)',
-        border: '1.5px solid var(--red-border)',
-        borderRadius: 16, padding: '28px 20px', textAlign: 'center', marginBottom: 16,
+        background: 'var(--red-dim)', border: '1px solid rgba(232,35,42,.3)',
+        borderRadius: 'var(--r)', padding: '28px 20px', textAlign: 'center', marginBottom: 16,
       }}>
-        <div style={{ fontSize: 48, marginBottom: 14 }}>⚠️</div>
-        <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--red)', marginBottom: 10, letterSpacing: '-.01em' }}>שים לב!</div>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--red)', marginBottom: 10 }}>שים לב!</div>
         <div style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.75, fontWeight: 500 }}>
           חובת נסיעה עם רכב ליווי
         </div>
       </div>
-      <button className="btn-primary" onClick={() => setStep('checklist')}>✓ קראתי ואישרתי</button>
+      <button className="btn-red" onClick={() => setStep('checklist')}>✓ קראתי ואישרתי</button>
     </div>
   )
 
   /* ─── CHECKLIST ─── */
   if (step === 'checklist') return (
-    <div style={{ padding: '16px 16px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>בדיקות לפני נסיעה</div>
-        <span style={{
-          fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-          background: allChecked ? 'var(--green-bg)' : 'var(--red-bg)',
-          color: allChecked ? 'var(--green)' : 'var(--red)',
-          border: `1px solid ${allChecked ? 'var(--green-border)' : 'var(--red-border)'}`,
-        }}>{checked.size}/{checkItems.length}</span>
-      </div>
+    <div>
+      <SectionHeader
+        title="בדיקות לפני נסיעה"
+        onBack={() => setSelectedPurpose(null) || setStep('select-purpose')}
+        sub={`${checked.size} מתוך ${checkItems.length} הושלמו`}
+      />
 
       {/* progress bar */}
-      <div style={{ background: 'var(--bg3)', borderRadius: 4, height: 4, marginBottom: 14, overflow: 'hidden' }}>
-        <div style={{ height: '100%', background: `linear-gradient(90deg, var(--red), ${allChecked ? 'var(--green)' : 'var(--red)'})`, borderRadius: 4, width: `${pct}%`, transition: 'width .3s, background .5s' }} />
+      <div style={{ height: 2, background: 'var(--line)', margin: 0 }}>
+        <div style={{
+          height: '100%',
+          background: allChecked ? 'var(--green)' : 'var(--red)',
+          width: `${pct}%`, transition: 'width .3s ease, background .4s ease',
+          boxShadow: `0 0 6px ${allChecked ? 'var(--green)' : 'var(--red-glow)'}`,
+        }} />
       </div>
 
-      {/* checklist */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 12 }}>
-        {checkItems.map((item, i) => (
-          <div key={item.id} onClick={() => toggleCheck(item.id)}
-            style={{
-              display: 'flex', alignItems: 'flex-start', gap: 13, padding: '13px 14px',
-              borderBottom: i < checkItems.length - 1 ? '1px solid var(--border)' : 'none',
-              cursor: 'pointer', opacity: checked.has(item.id) ? .4 : 1,
-              transition: 'opacity .2s',
-            }}>
-            <div style={{
-              width: 22, height: 22, borderRadius: 7, flexShrink: 0, marginTop: 1,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: checked.has(item.id) ? 'var(--green)' : 'transparent',
-              border: `1.5px solid ${checked.has(item.id) ? 'var(--green)' : 'var(--border2)'}`,
-              transition: 'background .2s, border-color .2s',
-            }}>
-              {checked.has(item.id) && <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>✓</span>}
+      <div style={{ padding: '12px 16px 0' }}>
+        {/* checklist */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r)', overflow: 'hidden', marginBottom: 12 }}>
+          {checkItems.map((item, i) => (
+            <div key={item.id} onClick={() => toggleCheck(item.id)}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 13, padding: '13px 14px',
+                borderBottom: i < checkItems.length - 1 ? '1px solid var(--line)' : 'none',
+                cursor: 'pointer', opacity: checked.has(item.id) ? .4 : 1,
+                transition: 'opacity .2s',
+              }}>
+              <div style={{
+                width: 22, height: 22, borderRadius: 7, flexShrink: 0, marginTop: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: checked.has(item.id) ? 'var(--green)' : 'transparent',
+                border: `1.5px solid ${checked.has(item.id) ? 'var(--green)' : 'var(--edge)'}`,
+                transition: 'background .2s, border-color .2s',
+              }}>
+                {checked.has(item.id) && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>✓</span>}
+              </div>
+              <div style={{
+                fontSize: 13, lineHeight: 1.55, color: 'var(--text)',
+                textDecoration: checked.has(item.id) ? 'line-through' : 'none',
+              }}>
+                {item.text}
+              </div>
             </div>
-            <div style={{
-              fontSize: 13, lineHeight: 1.55, color: 'var(--text)',
-              textDecoration: checked.has(item.id) ? 'line-through' : 'none',
-            }}>
-              {item.text}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {/* km + destination */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px', marginBottom: 12 }}>
-        <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 6, fontWeight: 600 }}>קריאת מד ק&quot;מ בתחילת נסיעה</label>
-        <input
-          className="input"
-          type="number" value={startKm}
-          onChange={e => setStartKm(e.target.value)}
-          placeholder={String(vehicleKm)}
-          style={{ direction: 'ltr', textAlign: 'right', marginBottom: 12 }}
-        />
-        <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 6, fontWeight: 600 }}>יעד הנסיעה (אופציונלי)</label>
-        <input
-          className="input"
-          type="text" value={startDestination}
-          onChange={e => setStartDestination(e.target.value)}
-          placeholder="לדוגמה: תחנה מרכזית..."
-          style={{ direction: 'rtl', marginBottom: 12 }}
-        />
-        <button className="btn-primary"
-          onClick={() => { if (allChecked && startKm) setStep('alert-height') }}
-          disabled={!allChecked || !startKm}>
-          המשך ›
-        </button>
+        {/* km + destination */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r)', padding: '14px', marginBottom: 12 }}>
+          <label className="field-label">קריאת מד ק״מ</label>
+          <input className="input" type="number" value={startKm}
+            onChange={e => setStartKm(e.target.value)}
+            placeholder={String(vehicleKm)}
+            style={{ direction: 'ltr', textAlign: 'right', marginBottom: 12 }} />
+          <label className="field-label">יעד הנסיעה (אופציונלי)</label>
+          <input className="input" type="text" value={startDestination}
+            onChange={e => setStartDestination(e.target.value)}
+            placeholder="לדוגמה: תחנה מרכזית..."
+            style={{ direction: 'rtl', marginBottom: 12 }} />
+          <button className="btn-red"
+            onClick={() => { if (allChecked && startKm) setStep('alert-height') }}
+            disabled={!allChecked || !startKm}>
+            המשך ›
+          </button>
+        </div>
       </div>
     </div>
   )
 
   /* ─── ALERT HEIGHT ─── */
   if (step === 'alert-height') return (
-    <div style={{ padding: '16px 16px 24px' }}>
+    <div style={{ padding: '24px 16px' }}>
       <div style={{
-        background: 'rgba(244,162,97,.07)',
-        border: '1.5px solid var(--amber-border)',
-        borderRadius: 16, padding: '28px 20px', textAlign: 'center', marginBottom: 16,
+        background: 'var(--amber-dim)', border: '1px solid rgba(245,158,11,.3)',
+        borderRadius: 'var(--r)', padding: '28px 20px', textAlign: 'center', marginBottom: 16,
       }}>
         <div style={{ fontSize: 48, marginBottom: 14 }}>🚧</div>
-        <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--amber)', marginBottom: 10, letterSpacing: '-.01em' }}>אזהרה!</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--amber)', marginBottom: 10 }}>אזהרה!</div>
         <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.9, fontWeight: 500 }}>
           גובה הרכב הוא <strong style={{ color: 'var(--text)' }}>4.50 מטרים</strong><br />
           אין לעבור מתחת לגשרים נמוכים מגובה הרכב<br />
           <span style={{ color: 'var(--green)', fontWeight: 700 }}>נסיעה טובה! 🙏</span>
         </div>
       </div>
-      <button className="btn-primary" onClick={startTrip}>🚗 צא לדרך</button>
+      <button className="btn-red" onClick={startTrip}>🚗 צא לדרך</button>
     </div>
   )
 
   /* ─── ACTIVE TRIP ─── */
-  if (step === 'active-trip' && activeTrip) return (
-    <div style={{ padding: '16px 16px 24px' }}>
-      {/* reminder */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 12, padding: '11px 14px', marginBottom: 12,
-      }}>
-        <span style={{ fontSize: 18 }}>📋</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>ניתן לעבור לטאב מפעיל</div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>זכור לחזור ולסגור את הנסיעה בסיום</div>
-        </div>
-        <span style={{
-          fontSize: 11, fontWeight: 700, color: 'var(--amber)',
-          background: 'var(--amber-bg)', padding: '3px 9px',
-          borderRadius: 20, border: '1px solid var(--amber-border)',
-        }}>פעיל</span>
-      </div>
+  if (step === 'active-trip' && activeTrip) {
+    const startTime = new Date(activeTrip.start_time)
+    return (
+      <div style={{ padding: '16px 16px 24px' }}>
 
-      {/* trip card */}
-      <div style={{
-        background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 16, padding: '18px', marginBottom: 12,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-          <div style={{
-            width: 46, height: 46, borderRadius: 12,
-            background: 'linear-gradient(135deg, #3a1a1a, #5c2a2a)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, fontWeight: 700, color: 'var(--red)',
-          }}>
-            {activeTrip.driver_name?.slice(0, 2)}
-          </div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{activeTrip.driver_name}</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-              {activeTrip.notes} · {new Date(activeTrip.start_time).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
-          {[
-            { label: 'ק"מ התחלה', value: activeTrip.start_km?.toLocaleString(), color: 'var(--text)' },
-            { label: 'סטטוס', value: 'בנסיעה', color: 'var(--amber)' },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ background: 'var(--bg3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{label}</div>
-            </div>
-          ))}
-        </div>
-
-        <button className="btn-primary" onClick={() => setShowEndModal(true)}>🏁 סיים נסיעה</button>
-      </div>
-
-      {/* end modal */}
-      {showEndModal && (
+        {/* live badge */}
         <div style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,.7)',
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-          zIndex: 100,
-          backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', gap: 8,
+          marginBottom: 12, padding: '10px 14px',
+          background: 'var(--amber-dim)', border: '1px solid rgba(245,158,11,.25)',
+          borderRadius: 'var(--r)',
         }}>
-          <div style={{
-            background: 'var(--bg2)',
-            borderRadius: '20px 20px 0 0',
-            padding: '22px 18px 36px',
-            width: '100%', maxWidth: 390,
-            border: '1px solid var(--border)',
-            borderBottom: 'none',
-          }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border2)', margin: '0 auto 20px' }} />
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 18 }}>🏁 סיום נסיעה</div>
-            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 6, fontWeight: 600 }}>ק&quot;מ בסיום</label>
-            <input className="input" type="number" value={endKm} onChange={e => setEndKm(e.target.value)}
-              placeholder={String(activeTrip.start_km + 10)}
-              style={{ direction: 'ltr', textAlign: 'right', marginBottom: 14 }} />
-            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 6, fontWeight: 600 }}>הערות</label>
-            <textarea className="input" value={endNote} onChange={e => setEndNote(e.target.value)} rows={2}
-              placeholder="הערות לנסיעה..."
-              style={{ resize: 'none', direction: 'rtl', marginBottom: 18 }} />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn-primary" style={{ flex: 1, background: 'var(--green)' }}
-                onClick={endTrip} disabled={!endKm}>✓ אשר סיום</button>
-              <button className="btn-ghost" style={{ width: 'auto', padding: '0 18px' }}
-                onClick={() => setShowEndModal(false)}>ביטול</button>
-            </div>
+          <span style={{
+            width: 7, height: 7, borderRadius: '50%', background: 'var(--amber)',
+            boxShadow: '0 0 7px var(--amber)', flexShrink: 0,
+            animation: 'pulse 1.4s ease infinite',
+          }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--amber)' }}>נסיעה פעילה</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)' }}>זכור לחזור ולסגור בסיום</div>
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', direction: 'ltr' }}>
+            {startTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
-      )}
-    </div>
-  )
+
+        {/* trip card */}
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--line)',
+          borderRadius: 'var(--r)', overflow: 'hidden', marginBottom: 12,
+        }}>
+          {/* driver row */}
+          <div style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--line)' }}>
+            <Avatar name={activeTrip.driver_name ?? ''} size={44} />
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{activeTrip.driver_name}</div>
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{activeTrip.notes}</div>
+            </div>
+          </div>
+
+          {/* stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+            {[
+              { label: 'ק״מ התחלה', value: activeTrip.start_km?.toLocaleString() },
+              { label: 'סטטוס',     value: 'בנסיעה' },
+            ].map(({ label, value }, idx) => (
+              <div key={label} style={{
+                padding: '14px 16px', textAlign: 'center',
+                borderLeft: idx === 0 ? '1px solid var(--line)' : 'none',
+              }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-.02em' }}>{value}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 3, letterSpacing: '.03em' }}>{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* end button */}
+          <div style={{ padding: '12px 14px', borderTop: '1px solid var(--line)' }}>
+            <button className="btn-red" onClick={() => setShowEndModal(true)}>🏁 סיים נסיעה</button>
+          </div>
+        </div>
+
+        {/* end modal */}
+        {showEndModal && (
+          <div style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,.75)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            zIndex: 100, backdropFilter: 'blur(6px)',
+          }}>
+            <div style={{
+              background: 'var(--panel)',
+              borderRadius: '20px 20px 0 0',
+              padding: '0 16px 36px',
+              width: '100%', maxWidth: 390,
+              border: '1px solid var(--line2)',
+              borderBottom: 'none',
+            }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--edge)', margin: '14px auto 20px' }} />
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 18 }}>🏁 סיום נסיעה</div>
+              <label className="field-label">ק״מ בסיום</label>
+              <input className="input" type="number" value={endKm} onChange={e => setEndKm(e.target.value)}
+                placeholder={String(activeTrip.start_km + 10)}
+                style={{ direction: 'ltr', textAlign: 'right', marginBottom: 14 }} />
+              <label className="field-label">הערות</label>
+              <textarea className="input" value={endNote} onChange={e => setEndNote(e.target.value)} rows={2}
+                placeholder="הערות לנסיעה..."
+                style={{ resize: 'none', direction: 'rtl', marginBottom: 18 }} />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="btn-red" style={{ flex: 1, background: 'var(--green)' }}
+                  onClick={endTrip} disabled={!endKm}>✓ אשר סיום</button>
+                <button className="btn-ghost" style={{ width: 'auto', padding: '0 18px' }}
+                  onClick={() => setShowEndModal(false)}>ביטול</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return null
 }
