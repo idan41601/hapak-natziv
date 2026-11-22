@@ -102,13 +102,13 @@ export default function Home() {
           gap: 8,
           marginTop: 8,
           borderTop: '1px solid var(--line)',
-          background: isActive ? 'rgba(245,166,35,.06)' : 'rgba(0,212,126,.05)',
+          background: isActive ? 'rgba(201,123,10,.06)' : 'rgba(0,168,95,.05)',
         }}>
           {/* dot */}
           <span style={{
             width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
             background: isActive ? 'var(--amber)' : 'var(--green)',
-            boxShadow: `0 0 10px ${isActive ? 'var(--amber)' : 'var(--green)'}`,
+            boxShadow: 'none',
             animation: isActive ? 'pulse-dot 1.5s ease infinite' : 'none',
           }} />
 
@@ -202,7 +202,7 @@ export default function Home() {
                   width: 28, height: 2,
                   borderRadius: '0 0 3px 3px',
                   background: 'var(--red)',
-                  boxShadow: '0 0 10px var(--red-glow)',
+                  boxShadow: 'none',
                 }} />
               )}
               <span style={{
@@ -224,7 +224,7 @@ export default function Home() {
 
       {/* footer */}
       <div style={{
-        background: 'var(--black)',
+        background: 'var(--bg)',
         padding: '4px 0 max(4px, env(safe-area-inset-bottom))',
         textAlign: 'center',
         fontSize: 9,
