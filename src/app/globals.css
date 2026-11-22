@@ -1,28 +1,27 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --black:   #07080A;
-  --bg:      #0C0E14;
-  --panel:   #111319;
-  --surface: #161B25;
-  --lift:    #1B2130;
-  --edge:    #232A3A;
-  --line:    rgba(255,255,255,.06);
-  --line2:   rgba(255,255,255,.12);
+  --bg:      #F2F4F8;
+  --panel:   #FFFFFF;
+  --surface: #F7F8FA;
+  --lift:    #ECEEF3;
+  --edge:    #DDE0E8;
+  --line:    rgba(0,0,0,.07);
+  --line2:   rgba(0,0,0,.14);
 
-  --red:        #E8232A;
-  --red-mid:    rgba(232,35,42,.22);
-  --red-glow:   rgba(232,35,42,.4);
-  --red-border: rgba(232,35,42,.35);
+  --red:        #D9242B;
+  --red-mid:    rgba(217,36,43,.12);
+  --red-glow:   rgba(217,36,43,.3);
+  --red-border: rgba(217,36,43,.3);
 
-  --green:      #00D47E;
-  --green-mid:  rgba(0,212,126,.14);
-  --amber:      #F5A623;
-  --amber-mid:  rgba(245,166,35,.14);
+  --green:      #00A85F;
+  --green-mid:  rgba(0,168,95,.1);
+  --amber:      #C97B0A;
+  --amber-mid:  rgba(201,123,10,.1);
 
-  --t1: #E8EAF2;
-  --t2: #8A93AD;
-  --t3: #4A5268;
+  --t1: #0E1117;
+  --t2: #4A5268;
+  --t3: #8A93AD;
 
   --r:  8px;
   --r2: 5px;
@@ -31,7 +30,7 @@
 html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
   direction: rtl;
-  background: var(--black);
+  background: #E5E7EC;
   min-height: 100dvh;
   color: var(--t1);
   -webkit-font-smoothing: antialiased;
@@ -53,7 +52,7 @@ input, textarea, select, button { font-family: inherit; }
 }
 @media (min-width: 500px) {
   .phone {
-    box-shadow: 0 0 0 1px rgba(255,255,255,.04), 0 32px 80px rgba(0,0,0,.8);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 32px 80px rgba(0,0,0,.18);
   }
 }
 
@@ -104,7 +103,7 @@ input, textarea, select, button { font-family: inherit; }
   gap: 8px;
   transition: background .12s, border-color .12s;
 }
-.btn-ghost:active { background: var(--lift); border-color: var(--line2); }
+.btn-ghost:active { background: var(--lift); border-color: var(--edge); }
 
 .field-label {
   font-size: 10px;
@@ -117,7 +116,7 @@ input, textarea, select, button { font-family: inherit; }
 }
 
 .input {
-  background: var(--surface);
+  background: var(--panel);
   border: 1px solid var(--edge);
   border-radius: var(--r2);
   padding: 0 13px;
