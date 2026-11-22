@@ -309,7 +309,7 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
     <div>
       <SectionHeader
         title="בדיקות לפני נסיעה"
-        onBack={() => setSelectedPurpose(null) || setStep('select-purpose')}
+        onBack={() => { setSelectedPurpose(null); setStep('select-purpose') }}
         sub={`${checked.size} מתוך ${checkItems.length} הושלמו`}
       />
 
