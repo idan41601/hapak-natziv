@@ -80,7 +80,7 @@ export default function OperatorTab() {
   if (subView === 'confirm-exterior') return (
     <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{
-        background: 'var(--green-mid)', border: '1px solid rgba(0,212,126,.25)',
+        background: 'var(--green-mid)', border: '1px solid rgba(0,168,95,.25)',
         borderRadius: 'var(--r)', padding: 28, textAlign: 'center',
       }}>
         <div style={{ fontSize: 48, marginBottom: 14 }}>✅</div>
@@ -100,7 +100,7 @@ export default function OperatorTab() {
   if (subView === 'confirm-interior') return (
     <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{
-        background: 'var(--green-mid)', border: '1px solid rgba(0,212,126,.25)',
+        background: 'var(--green-mid)', border: '1px solid rgba(0,168,95,.25)',
         borderRadius: 'var(--r)', padding: 28, textAlign: 'center',
       }}>
         <div style={{ fontSize: 48, marginBottom: 14 }}>⚡</div>
