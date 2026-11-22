@@ -10,6 +10,13 @@ import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 type Tab = 'trip' | 'operator' | 'schedule' | 'admin'
 
+const NAV_ITEMS = [
+  { id: 'trip',     icon: '🚗', label: 'נסיעה'  },
+  { id: 'operator', icon: '📡', label: 'מפעיל'  },
+  { id: 'schedule', icon: '📅', label: 'שבצ"ק'  },
+  { id: 'admin',    icon: '🔒', label: 'אדמין'  },
+]
+
 export default function Home() {
   const [tab, setTab] = useState<Tab>('trip')
   const [activeTrip, setActiveTrip] = useState<any>(null)
@@ -20,16 +27,12 @@ export default function Home() {
 
   useEffect(() => {
     supabase.from('trips').select('*').eq('status', 'active').single()
-      .then(({ data }) => {
-        if (data) setActiveTrip(data)
-        setLoading(false)
-      })
+      .then(({ data }) => { if (data) setActiveTrip(data); setLoading(false) })
   }, [])
 
   useEffect(() => {
-    if (!loading && (status === 'default' || status === 'needs-pwa')) {
+    if (!loading && (status === 'default' || status === 'needs-pwa'))
       setTimeout(() => setShowPushBanner(true), 2000)
-    }
   }, [loading, status])
 
   async function handleSubscribe() {
@@ -45,105 +48,139 @@ export default function Home() {
 
   return (
     <div className="phone">
-      {/* TOPBAR */}
-      <div style={{
-        background: 'var(--red)',
-        padding: '12px 16px 10px',
+
+      {/* ─── TOP BAR ─── */}
+      <header style={{
+        background: 'var(--bg2)',
+        borderBottom: '1px solid var(--border)',
+        padding: '14px 16px 12px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2px solid rgba(255,255,255,.3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10, overflow: 'hidden',
+            flexShrink: 0, border: '1.5px solid var(--border2)',
+          }}>
             <img src="/chapak-hero.jpg" alt="חפק" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>חפ&quot;ק נציב כבאות</div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', marginTop: 1 }}>לפיד 10</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', letterSpacing: '-.01em' }}>חפ&quot;ק נציב כבאות</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1 }}>לפיד 10</div>
           </div>
         </div>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 5,
-          fontSize: 11, color: '#fff',
-          background: activeTrip ? 'rgba(255,200,0,.25)' : 'rgba(255,255,255,.18)',
-          padding: '4px 10px', borderRadius: 20
-        }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: activeTrip ? '#ffe066' : '#5ee89a' }} />
-          {activeTrip ? `בנסיעה — ${activeTrip.driver_name}` : 'פנוי'}
-        </div>
-      </div>
 
-      {/* בנר הרשמה להתראות */}
+        {/* status pill */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 11, fontWeight: 600,
+          background: activeTrip ? 'rgba(244,162,97,.12)' : 'rgba(45,198,83,.1)',
+          color: activeTrip ? 'var(--amber)' : 'var(--green)',
+          border: `1px solid ${activeTrip ? 'var(--amber-border)' : 'var(--green-border)'}`,
+          padding: '5px 11px', borderRadius: 20,
+          letterSpacing: '.01em',
+        }}>
+          <div style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: activeTrip ? 'var(--amber)' : 'var(--green)',
+            boxShadow: activeTrip ? '0 0 6px var(--amber)' : '0 0 6px var(--green)',
+          }} />
+          {activeTrip ? `${activeTrip.driver_name}` : 'פנוי'}
+        </div>
+      </header>
+
+      {/* ─── PUSH BANNER ─── */}
       {showPushBanner && (
-        <div style={{ background: 'var(--amber-bg)', borderBottom: '1px solid var(--amber-border)', padding: '12px 14px', flexShrink: 0 }}>
+        <div style={{
+          background: 'var(--bg3)',
+          borderBottom: '1px solid var(--border)',
+          padding: '14px 16px',
+          flexShrink: 0,
+        }}>
           {status === 'needs-pwa' ? (
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>🔔 הפעל התראות על אייפון</div>
-              <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7, marginBottom: 10 }}>
-                כדי לקבל התראות על אייפון:<br/>
-                1. לחץ על <strong>⬆️ שתף</strong> בתחתית Safari<br/>
-                2. בחר <strong>"הוסף למסך הבית"</strong><br/>
-                3. פתח את האפליקציה מהאייקון החדש
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>🔔 הפעל התראות על אייפון</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 10 }}>
+                1. לחץ <strong style={{ color: 'var(--text2)' }}>⬆️ שתף</strong> בתחתית Safari<br />
+                2. בחר <strong style={{ color: 'var(--text2)' }}>"הוסף למסך הבית"</strong><br />
+                3. פתח מהאייקון החדש
               </div>
-              <button onClick={() => setShowPushBanner(false)}
-                style={{ width: '100%', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--muted)', borderRadius: 8, padding: '9px 0', fontSize: 12, cursor: 'pointer' }}>
-                הבנתי
-              </button>
-            </div>
+              <button className="btn-ghost" onClick={() => setShowPushBanner(false)}>הבנתי</button>
+            </>
           ) : (
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>🔔 הפעל התראות</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>קבל עדכונים על שבצ&quot;ק חדש ועדכונים מהמפקד</div>
-              <input value={pushName} onChange={e => setPushName(e.target.value)}
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: 'var(--text)' }}>🔔 הפעל התראות</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>קבל עדכונים על שבצ&quot;ק ועדכוני מפקד</div>
+              <input
+                className="input"
+                value={pushName}
+                onChange={e => setPushName(e.target.value)}
                 placeholder="מה השם שלך? (לדוגמה: משה נהג)"
-                style={{ background: 'var(--bg)', border: '1px solid var(--border2)', borderRadius: 8, padding: '9px 12px', fontSize: 13, width: '100%', direction: 'rtl', marginBottom: 8 }} />
+                style={{ marginBottom: 8, direction: 'rtl' }}
+              />
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={handleSubscribe}
-                  style={{ flex: 1, background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-                  ✓ הפעל התראות
-                </button>
-                <button onClick={() => setShowPushBanner(false)}
-                  style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--muted)', borderRadius: 8, padding: '9px 12px', fontSize: 12, cursor: 'pointer' }}>
-                  אחר כך
-                </button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={handleSubscribe}>✓ הפעל</button>
+                <button className="btn-ghost" style={{ width: 'auto', padding: '0 16px' }} onClick={() => setShowPushBanner(false)}>אחר כך</button>
               </div>
-            </div>
+            </>
           )}
         </div>
       )}
 
-      {/* CONTENT */}
+      {/* ─── CONTENT ─── */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {tab === 'trip' && <TripTab activeTrip={activeTrip} onTripStart={setActiveTrip} onTripEnd={() => setActiveTrip(null)} />}
+        {tab === 'trip'     && <TripTab activeTrip={activeTrip} onTripStart={setActiveTrip} onTripEnd={() => setActiveTrip(null)} />}
         {tab === 'operator' && <OperatorTab />}
         {tab === 'schedule' && <ScheduleTab />}
-        {tab === 'admin' && <AdminTab />}
+        {tab === 'admin'    && <AdminTab />}
       </div>
 
-      {/* BOTTOM NAV */}
-      <nav style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', display: 'flex', padding: '4px 0 6px', flexShrink: 0 }}>
-        {[
-          { id: 'trip', icon: '🚗', label: 'נסיעה' },
-          { id: 'operator', icon: '📡', label: 'מפעיל' },
-          { id: 'schedule', icon: '📅', label: 'שבצ"ק' },
-          { id: 'admin', icon: '🔒', label: 'אדמין' },
-        ].map(item => (
-          <button key={item.id} onClick={() => setTab(item.id as Tab)}
-            style={{
-              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-              border: 'none', background: 'none', cursor: 'pointer', padding: '6px 0',
-              color: tab === item.id ? 'var(--red)' : 'var(--dim)', fontSize: 10,
-            }}>
-            <span style={{ fontSize: 20 }}>{item.icon}</span>
-            <span style={{ fontWeight: tab === item.id ? 600 : 400 }}>{item.label}</span>
-          </button>
-        ))}
+      {/* ─── BOTTOM NAV ─── */}
+      <nav style={{
+        background: 'var(--bg2)',
+        borderTop: '1px solid var(--border)',
+        display: 'flex',
+        padding: '6px 0 max(8px, env(safe-area-inset-bottom))',
+        flexShrink: 0,
+      }}>
+        {NAV_ITEMS.map(item => {
+          const active = tab === item.id
+          return (
+            <button key={item.id} onClick={() => setTab(item.id as Tab)}
+              style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                border: 'none', background: 'none', cursor: 'pointer', padding: '5px 0',
+                position: 'relative',
+              }}>
+              {active && (
+                <div style={{
+                  position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+                  width: 28, height: 2.5, borderRadius: 2,
+                  background: 'var(--red)',
+                }} />
+              )}
+              <span style={{ fontSize: 20, filter: active ? 'none' : 'grayscale(1) opacity(.4)' }}>{item.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: active ? 700 : 400, color: active ? 'var(--red)' : 'var(--dim)', letterSpacing: '.01em' }}>
+                {item.label}
+              </span>
+            </button>
+          )
+        })}
       </nav>
 
-      {/* COPYRIGHT */}
-      <div style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', padding: '6px 0', textAlign: 'center', fontSize: 10, color: 'var(--dim)', flexShrink: 0 }}>
-        נוצר ופותח ע&quot;י עידן פינצבסקי · כל הזכויות שמורות
+      {/* ─── FOOTER ─── */}
+      <div style={{
+        background: 'var(--bg2)',
+        borderTop: '1px solid var(--border)',
+        padding: '5px 0',
+        textAlign: 'center',
+        fontSize: 10,
+        color: 'var(--dim)',
+        flexShrink: 0,
+      }}>
+        פותח ע&quot;י עידן פינצבסקי · כל הזכויות שמורות
       </div>
     </div>
   )
