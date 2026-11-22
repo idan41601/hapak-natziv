@@ -28,8 +28,8 @@ function Initials({ name, size = 42 }: { name: string; size?: number }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: Math.round(size * .28),
-      background: 'linear-gradient(145deg, #1e1010 0%, #2d1414 100%)',
-      border: '1px solid rgba(232,35,42,.2)',
+      background: 'linear-gradient(145deg, #fce8e8 0%, #f9d0d1 100%)',
+      border: '1px solid rgba(217,36,43,.18)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: Math.round(size * .34), fontWeight: 800,
       color: 'var(--red)', flexShrink: 0,
@@ -132,18 +132,18 @@ export default function TripTab({ activeTrip, onTripStart, onTripEnd }: Props) {
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(to bottom, rgba(7,8,10,.15) 0%, rgba(7,8,10,.92) 100%)',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,.08) 0%, rgba(0,0,0,.72) 100%)',
         }} />
 
         {/* km badge — top left */}
         <div style={{
           position: 'absolute', top: 12, left: 12,
-          background: 'rgba(7,8,10,.8)', backdropFilter: 'blur(10px) saturate(1.2)',
-          border: '1px solid rgba(255,255,255,.1)',
+          background: 'rgba(255,255,255,.88)', backdropFilter: 'blur(10px) saturate(1.2)',
+          border: '1px solid rgba(0,0,0,.1)',
           borderRadius: 7, padding: '6px 11px',
         }}>
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,.4)', letterSpacing: '.06em', marginBottom: 2 }}>מד ק״מ</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', direction: 'ltr', letterSpacing: '-.01em' }}>
+          <div style={{ fontSize: 9, color: 'rgba(0,0,0,.4)', letterSpacing: '.06em', marginBottom: 2 }}>מד ק״מ</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#111', direction: 'ltr', letterSpacing: '-.01em' }}>
             {vehicleKm.toLocaleString()}
           </div>
         </div>
